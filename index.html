@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&display=swap" rel="stylesheet">
 <style>
-*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;-moz-user-select:none;user-select:none;-webkit-touch-callout:none;}
 body{background:#cfe8d8;overflow:hidden;font-family:'Baloo 2','Trebuchet MS',sans-serif;color:#1d3a2a;touch-action:none;}
 #c{display:block;width:100vw;height:100vh;cursor:crosshair;}
 #hud{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;}
@@ -55,6 +55,15 @@ body{background:#cfe8d8;overflow:hidden;font-family:'Baloo 2','Trebuchet MS',san
 .tbtn{position:absolute;right:24px;width:62px;height:62px;border-radius:50%;border:2px solid rgba(45,110,75,0.5);background:rgba(95,191,134,0.45);color:#1d4a32;font-size:22px;font-weight:700;display:flex;align-items:center;justify-content:center;pointer-events:all;font-family:sans-serif;user-select:none;}
 #tup{bottom:104px;}
 #tdown{bottom:24px;}
+/* interact button — lives inside touchUI so it sits ABOVE the look layer and is tappable */
+#tinteract{position:absolute;right:24px;bottom:178px;display:none;pointer-events:all;background:rgba(45,110,75,0.94);color:#fff;font-family:'Baloo 2',sans-serif;font-weight:800;font-size:13px;letter-spacing:0.05em;text-transform:lowercase;padding:12px 18px;border-radius:20px;box-shadow:0 4px 16px rgba(30,80,55,0.5);white-space:nowrap;user-select:none;}
+/* on touch: nav menu moves to top-left so the fly buttons own the bottom-right cleanly */
+body.touch #nav{top:56px;left:12px;right:auto;bottom:auto;gap:7px;z-index:9;}
+body.touch #ihint{display:none;}
+/* lift HUD buttons ABOVE the look-drag layer so taps reach them instead of being eaten.
+   socials container is click-through; only the links themselves catch taps (look-drag still works in the gaps). */
+body.touch #socials{z-index:9;pointer-events:none;}
+body.touch .sl{pointer-events:all;padding:3px 0;}
 </style>
 </head>
 <body>
@@ -93,11 +102,13 @@ body{background:#cfe8d8;overflow:hidden;font-family:'Baloo 2','Trebuchet MS',san
     <div id="tmove"><div id="tnub"></div><div id="tstick"></div></div>
     <div id="tup" class="tbtn">▲</div>
     <div id="tdown" class="tbtn">▼</div>
+    <div id="tinteract">open</div>
   </div>
 </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
 var IS_TOUCH = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+if(IS_TOUCH)document.body.classList.add('touch');
 
 // ── BACKGROUND MUSIC ──
 // browsers block UNMUTED autoplay until the user interacts with the page,
@@ -137,14 +148,21 @@ renderer.setPixelRatio(Math.min(devicePixelRatio, IS_TOUCH?1.5:2));
 renderer.setClearColor(0x2a2d34,1);
 // filmic tone mapping rolls off highlights so lit pastel faces never clip to pure white
 renderer.toneMapping=THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure=1.0;
+renderer.toneMappingExposure=1.06;
 scene.fog=new THREE.FogExp2(0x3a3e48,0.016);
 
-// ── LIGHTING — softened so matte pastel albedo reads (no blowout) ──
-scene.add(new THREE.AmbientLight(0x9498a8,0.8));
-var sun=new THREE.DirectionalLight(0xffffff,0.7);sun.position.set(6,20,4);scene.add(sun);
-var pl1=new THREE.PointLight(0xc890ff,0.7,50);pl1.position.set(0,12,-6);scene.add(pl1);   // violet
-var pl2=new THREE.PointLight(0x80d0ff,0.7,50);pl2.position.set(0,10,2);scene.add(pl2);    // cyan
+// ── LIGHTING — soft base + room-wide animated rainbow (driven in render loop) ──
+var amb=new THREE.AmbientLight(0x9aa0b4,1.0);scene.add(amb);
+var sun=new THREE.DirectionalLight(0xffffff,0.75);sun.position.set(6,20,4);scene.add(sun);
+// a ring of colored lights orbits the room, sweeping a moving spectrum over every surface
+var rainbowLights=[];
+(function(){
+  var N=IS_TOUCH?4:7;
+  for(var i=0;i<N;i++){
+    var pl=new THREE.PointLight(0xffffff,IS_TOUCH?0.85:0.7,75);
+    pl.userData.idx=i;rainbowLights.push(pl);scene.add(pl);
+  }
+})();
 
 function mat(c,op,r,m,em,ei){
   op=(op===undefined)?1:op;r=(r===undefined)?0.5:r;m=(m===undefined)?0.15:m;
@@ -169,7 +187,7 @@ mkPlane(80,24,0,-Math.PI/2,-30,9,0,0x454952);      // left
 // ceiling frames a big circular opening; the glass dome caps it overhead
 var ceil=new THREE.Mesh(new THREE.RingGeometry(12,46,56,1),mat(0x4a4e58,1,0.8,0.05));
 ceil.material.side=THREE.DoubleSide;
-ceil.rotation.x=Math.PI/2;ceil.position.y=19;scene.add(ceil);
+ceil.rotation.x=Math.PI/2;ceil.position.set(0,19,-7);scene.add(ceil);  // centered on room (z spans -30..16)
 
 var DOME_CY=11.5, DOME_R=15, DOME_TH=1.05; // cap sits above the opening, apex ~y26
 
@@ -183,7 +201,7 @@ var DOME_CY=11.5, DOME_R=15, DOME_TH=1.05; // cap sits above the opening, apex ~
   var skyTex=new THREE.CanvasTexture(cv2);
   var sky=new THREE.Mesh(new THREE.SphereGeometry(DOME_R+2.5,20,12,0,Math.PI*2,0,DOME_TH+0.25),
     new THREE.MeshBasicMaterial({map:skyTex,side:THREE.BackSide,fog:false}));
-  sky.position.y=DOME_CY;scene.add(sky);
+  sky.position.set(0,DOME_CY,-7);scene.add(sky);
 })();
 
 // glass paneled cap — iridescent rainbow vertex colors, additive shimmer
@@ -200,15 +218,14 @@ var domeGeo=new THREE.SphereGeometry(DOME_R,10,5,0,Math.PI*2,0,DOME_TH);
 var domeGlass=new THREE.Mesh(domeGeo,new THREE.MeshBasicMaterial({
   vertexColors:true,transparent:true,opacity:0.22,side:THREE.DoubleSide,
   blending:THREE.AdditiveBlending,depthWrite:false,fog:false}));
-domeGlass.position.y=DOME_CY;scene.add(domeGlass);
+domeGlass.position.set(0,DOME_CY,-7);scene.add(domeGlass);
 // bright rim halo around the opening
 var halo=new THREE.Mesh(new THREE.TorusGeometry(12,0.22,8,52),
   new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:0.5,fog:false}));
-halo.rotation.x=Math.PI/2;halo.position.y=19;scene.add(halo);
+halo.rotation.x=Math.PI/2;halo.position.set(0,19,-7);scene.add(halo);
 
 // ── dispersed rainbow ambient (no harsh central beam) ──
-var pl3=new THREE.PointLight(0xff90c0,0.6,60);pl3.position.set(-17,10,-6);scene.add(pl3);  // pink
-var pl4=new THREE.PointLight(0x90ffb0,0.6,60);pl4.position.set(17,10,-16);scene.add(pl4);  // green
+// (rainbow point lights are created above as an orbiting ring — see rainbowLights)
 // soft glow pool under each stand (cheap flat additive discs — no real spotlights)
 var standGlows=[
   {x:0,z:-13,c:0xa888f0,op:0.10},   // music  - lilac (dimmed)
@@ -510,6 +527,91 @@ for(var si3=0;si3<500;si3++) sv.push((Math.random()-0.5)*130,Math.random()*40+8,
 var sgeom=new THREE.BufferGeometry();sgeom.setAttribute('position',new THREE.Float32BufferAttribute(sv,3));
 scene.add(new THREE.Points(sgeom,new THREE.PointsMaterial({color:0xffffff,size:0.08,transparent:true,opacity:0.4})));
 
+// ── RAINBOW ARCHES (soft feathered ROYGBIV bows rising on every wall — all-around) ──
+var rainbows=[];
+(function(){
+  var cv2=document.createElement('canvas');cv2.width=512;cv2.height=512;
+  var g=cv2.getContext('2d');var cx=256,cy=256;
+  var grd=g.createRadialGradient(cx,cy,0,cx,cy,256);
+  grd.addColorStop(0.00,'rgba(0,0,0,0)');
+  grd.addColorStop(0.60,'rgba(0,0,0,0)');        // transparent inside
+  grd.addColorStop(0.63,'rgba(160,90,230,0)');   // violet fades in
+  grd.addColorStop(0.66,'rgba(160,90,230,0.62)');
+  grd.addColorStop(0.71,'rgba(70,130,255,0.62)'); // blue
+  grd.addColorStop(0.75,'rgba(60,205,235,0.62)'); // cyan
+  grd.addColorStop(0.79,'rgba(95,225,120,0.62)'); // green
+  grd.addColorStop(0.84,'rgba(255,230,95,0.62)'); // yellow
+  grd.addColorStop(0.89,'rgba(255,155,65,0.62)'); // orange
+  grd.addColorStop(0.93,'rgba(255,95,95,0.62)');  // red
+  grd.addColorStop(0.97,'rgba(255,95,95,0)');     // red fades out
+  grd.addColorStop(1.00,'rgba(0,0,0,0)');
+  g.fillStyle=grd;g.fillRect(0,0,512,512);
+  var tex=new THREE.CanvasTexture(cv2);
+  function arc(x,y,z,ry,size,op){
+    var m=new THREE.Mesh(new THREE.PlaneGeometry(size,size),
+      new THREE.MeshBasicMaterial({map:tex,transparent:true,opacity:op,depthWrite:false,side:THREE.DoubleSide,fog:false,blending:THREE.AdditiveBlending}));
+    m.position.set(x,y,z);m.rotation.y=ry;m.userData.baseOp=op;m.userData.ph=Math.random()*6.28;
+    rainbows.push(m);scene.add(m);return m;
+  }
+  arc(0,-3,-29,0,48,0.5);            // back wall arch
+  arc(0,-3,15.5,Math.PI,48,0.5);     // front wall arch
+  arc(-29,-3,-7,Math.PI/2,48,0.45);   // left wall arch (centered on room)
+  arc(29,-3,-7,-Math.PI/2,48,0.45);   // right wall arch (centered on room)
+})();
+
+// ── TWINKLING SPARKLES (soft star points twinkling in the room) ──
+var sparkleTex=(function(){
+  var c=document.createElement('canvas');c.width=64;c.height=64;var x=c.getContext('2d');
+  var gr=x.createRadialGradient(32,32,0,32,32,32);
+  gr.addColorStop(0,'rgba(255,255,255,1)');gr.addColorStop(0.25,'rgba(255,255,255,0.6)');gr.addColorStop(1,'rgba(255,255,255,0)');
+  x.fillStyle=gr;x.beginPath();x.arc(32,32,32,0,Math.PI*2);x.fill();
+  x.strokeStyle='rgba(255,255,255,0.7)';x.lineWidth=2;
+  x.beginPath();x.moveTo(32,7);x.lineTo(32,57);x.moveTo(7,32);x.lineTo(57,32);x.stroke();
+  return new THREE.CanvasTexture(c);
+})();
+var sparkles=[];
+(function(){
+  var layers=IS_TOUCH?2:3;
+  for(var L=0;L<layers;L++){
+    var pv=[],cnt=IS_TOUCH?40:70;
+    for(var i=0;i<cnt;i++) pv.push((Math.random()-0.5)*54,Math.random()*16-2,-7+(Math.random()-0.5)*40);
+    var pg=new THREE.BufferGeometry();pg.setAttribute('position',new THREE.Float32BufferAttribute(pv,3));
+    var pm=new THREE.PointsMaterial({map:sparkleTex,color:0xffffff,size:0.5+L*0.18,transparent:true,opacity:0.8,depthWrite:false,blending:THREE.AdditiveBlending});
+    var pts=new THREE.Points(pg,pm);pts.userData.ph=L*2.1;sparkles.push(pts);scene.add(pts);
+  }
+})();
+
+// ── SPACE WINDOWS (stars + planets beneath each rainbow, all 4 walls) ──
+var spaceTex=(function(){
+  var c=document.createElement('canvas');c.width=512;c.height=320;var x=c.getContext('2d');
+  var bg=x.createLinearGradient(0,0,0,320);
+  bg.addColorStop(0,'#0a0a2a');bg.addColorStop(0.6,'#140a30');bg.addColorStop(1,'#05030f');
+  x.fillStyle=bg;x.fillRect(0,0,512,320);
+  function neb(cx,cy,r,col){var ng=x.createRadialGradient(cx,cy,0,cx,cy,r);ng.addColorStop(0,col);ng.addColorStop(1,'rgba(0,0,0,0)');x.fillStyle=ng;x.fillRect(0,0,512,320);}
+  neb(140,110,150,'rgba(120,80,200,0.28)');
+  neb(380,210,170,'rgba(60,150,210,0.22)');
+  for(var i=0;i<280;i++){var sx=Math.random()*512,sy=Math.random()*320,r=Math.random()*1.3+0.2;x.fillStyle='rgba(255,255,255,'+(0.4+Math.random()*0.6)+')';x.beginPath();x.arc(sx,sy,r,0,Math.PI*2);x.fill();}
+  function planet(cx,cy,r,c1,c2,ring){
+    var pg=x.createRadialGradient(cx-r*0.3,cy-r*0.3,r*0.1,cx,cy,r);
+    pg.addColorStop(0,c1);pg.addColorStop(1,c2);
+    x.fillStyle=pg;x.beginPath();x.arc(cx,cy,r,0,Math.PI*2);x.fill();
+    if(ring){x.save();x.translate(cx,cy);x.rotate(-0.4);x.scale(1,0.32);x.strokeStyle='rgba(220,200,255,0.55)';x.lineWidth=5;x.beginPath();x.arc(0,0,r*1.8,0,Math.PI*2);x.stroke();x.restore();}
+  }
+  planet(385,95,40,'#a8ead9','#2a7a8a',true);
+  planet(115,240,26,'#ffc8a0','#a8583a',false);
+  x.strokeStyle='rgba(180,190,210,0.35)';x.lineWidth=10;x.strokeRect(5,5,502,310);
+  return new THREE.CanvasTexture(c);
+})();
+var spaceWindows=[];
+function addWindow(wx,wy,wz,ry,w,h){
+  var m=new THREE.Mesh(new THREE.PlaneGeometry(w,h),new THREE.MeshBasicMaterial({map:spaceTex,fog:false}));
+  m.position.set(wx,wy,wz);m.rotation.y=ry;spaceWindows.push(m);scene.add(m);return m;
+}
+addWindow(0,2.5,-29.6,0,30,13);             // back
+addWindow(0,2.5,15.6,Math.PI,30,13);        // front
+addWindow(-29.6,2.5,-7,Math.PI/2,30,13);    // left
+addWindow(29.6,2.5,-7,-Math.PI/2,30,13);    // right
+
 // precompute interactable meshes for raycast (once)
 var iaMeshes=[];
 ias.forEach(function(g){g.traverse(function(ch){if(ch.isMesh)iaMeshes.push(ch);});});
@@ -571,8 +673,9 @@ if(IS_TOUCH){
   var moveId=null,moveCX=0,moveCY=0;
   var tstick=document.getElementById('tstick');
   var look=document.getElementById('tlook'),move=document.getElementById('tmove');
-  look.addEventListener('touchstart',function(e){var t=e.changedTouches[0];lookId=t.identifier;lookX=t.clientX;lookY=t.clientY;},{passive:true});
+  look.addEventListener('touchstart',function(e){e.preventDefault();var t=e.changedTouches[0];lookId=t.identifier;lookX=t.clientX;lookY=t.clientY;},{passive:false});
   look.addEventListener('touchmove',function(e){
+    e.preventDefault();
     for(var i=0;i<e.changedTouches.length;i++){var t=e.changedTouches[i];if(t.identifier===lookId){
       euler.setFromQuaternion(camera.quaternion);
       euler.y-=(t.clientX-lookX)*0.005;euler.x-=(t.clientY-lookY)*0.005;
@@ -580,18 +683,19 @@ if(IS_TOUCH){
       camera.quaternion.setFromEuler(euler);
       lookX=t.clientX;lookY=t.clientY;
     }}
-  },{passive:true});
+  },{passive:false});
   look.addEventListener('touchend',function(e){for(var i=0;i<e.changedTouches.length;i++){if(e.changedTouches[i].identifier===lookId)lookId=null;}},{passive:true});
 
-  move.addEventListener('touchstart',function(e){var t=e.changedTouches[0];moveId=t.identifier;var r=move.getBoundingClientRect();moveCX=r.left+r.width/2;moveCY=r.top+r.height/2;},{passive:true});
+  move.addEventListener('touchstart',function(e){e.preventDefault();var t=e.changedTouches[0];moveId=t.identifier;var r=move.getBoundingClientRect();moveCX=r.left+r.width/2;moveCY=r.top+r.height/2;},{passive:false});
   move.addEventListener('touchmove',function(e){
+    e.preventDefault();
     for(var i=0;i<e.changedTouches.length;i++){var t=e.changedTouches[i];if(t.identifier===moveId){
       var dx=t.clientX-moveCX,dy=t.clientY-moveCY;var mag=Math.min(Math.sqrt(dx*dx+dy*dy),55);var ang=Math.atan2(dy,dx);
       var nx=Math.cos(ang)*mag,ny=Math.sin(ang)*mag;
       tstick.style.left=(43+nx)+'px';tstick.style.top=(43+ny)+'px';
       moveX=nx/55;moveZ=ny/55;
     }}
-  },{passive:true});
+  },{passive:false});
   move.addEventListener('touchend',function(e){for(var i=0;i<e.changedTouches.length;i++){if(e.changedTouches[i].identifier===moveId){moveId=null;moveX=0;moveZ=0;tstick.style.left='43px';tstick.style.top='43px';}}},{passive:true});
 
   var up=document.getElementById('tup'),down=document.getElementById('tdown');
@@ -600,21 +704,28 @@ if(IS_TOUCH){
   down.addEventListener('touchstart',function(e){e.preventDefault();flyUp=-1;},{passive:false});
   down.addEventListener('touchend',function(){flyUp=0;},{passive:true});
 
-  document.getElementById('ihint').addEventListener('click',function(){if(nearObj&&!panelOpen)openPanel(nearObj);});
+  var tib=document.getElementById('tinteract');
+  tib.addEventListener('touchstart',function(e){e.preventDefault();if(nearObj&&!panelOpen)openPanel(nearObj);},{passive:false});
+  tib.addEventListener('click',function(){if(nearObj&&!panelOpen)openPanel(nearObj);});
 }
 
 // ── INTERACTION (throttled) ──
 var ray=new THREE.Raycaster();var nearObj=null;var iaFrame=0;
+var ihint=document.getElementById('ihint');var tint=document.getElementById('tinteract');
 function checkIA(){
   ray.setFromCamera({x:0,y:0},camera);
   var hits=ray.intersectObjects(iaMeshes,false);
-  var ih=document.getElementById('ihint');
-  if(hits.length&&hits[0].distance<5){
+  if(hits.length&&hits[0].distance<6){
     var o=hits[0].object;while(o.parent&&!o.userData.ia&&o.parent!==scene)o=o.parent;
-    nearObj=o.userData.label||null;ih.style.opacity=nearObj?'1':'0';
-    if(nearObj&&IS_TOUCH)ih.textContent='tap to open '+nearObj;
-    else if(nearObj)ih.textContent='[ e ] '+nearObj;
-  }else{nearObj=null;ih.style.opacity='0';}
+    nearObj=o.userData.label||null;
+  }else{nearObj=null;}
+  if(IS_TOUCH){
+    if(nearObj){tint.textContent='open '+nearObj;tint.style.display='block';}
+    else{tint.style.display='none';}
+  }else{
+    ihint.style.opacity=nearObj?'1':'0';
+    if(nearObj)ihint.textContent='[ e ] '+nearObj;
+  }
 }
 
 // ── flah tracks: drop audio files next to this html (e.g. a "tracks" folder)
@@ -738,6 +849,23 @@ function animate(){
     caustics[cz].material.opacity=caustics[cz].userData.op+Math.sin(t*0.9+caustics[cz].userData.ph)*0.05;
   }
   for(var o2=0;o2<orbList.length;o2++){var ob=orbList[o2];ob.position.y=ob.userData.baseY+Math.sin(t*0.55+ob.userData.floatOffset)*0.25;}
+
+  // ── all-encompassing rainbow: ambient bathes the room + ring lights sweep + arches shimmer ──
+  amb.color.setHSL((t*0.03)%1,0.22,0.62);
+  for(var rl=0;rl<rainbowLights.length;rl++){
+    var rpl=rainbowLights[rl],ri=rpl.userData.idx,frac=ri/rainbowLights.length;
+    rpl.color.setHSL((t*0.05+frac)%1,0.85,0.6);
+    var ra=t*0.22+frac*Math.PI*2;
+    rpl.position.set(Math.cos(ra)*20, 8+Math.sin(t*0.4+ri)*3.5, -9+Math.sin(ra)*15);
+  }
+  for(var rb=0;rb<rainbows.length;rb++){
+    var rbm=rainbows[rb];
+    rbm.material.opacity=rbm.userData.baseOp+Math.sin(t*0.5+rbm.userData.ph)*0.07; // soft shimmer
+  }
+  for(var sp=0;sp<sparkles.length;sp++){
+    sparkles[sp].material.opacity=0.5+Math.sin(t*1.6+sparkles[sp].userData.ph)*0.45; // twinkle
+    sparkles[sp].rotation.y=t*0.02*(sp+1);
+  }
 
   // billboards face camera (signs over command/news/music)
   for(var b=0;b<billboards.length;b++){
