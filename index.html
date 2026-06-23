@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>flah</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+body{background:#cfe8d8;overflow:hidden;font-family:'Baloo 2','Trebuchet MS',sans-serif;color:#1d3a2a;touch-action:none;}
+#c{display:block;width:100vw;height:100vh;cursor:crosshair;}
+#hud{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;}
+#logo{position:absolute;top:20px;left:50%;transform:translateX(-50%);text-align:center;}
+#logo h1{font-size:20px;letter-spacing:0.32em;color:#ffc6a0;text-transform:lowercase;font-weight:800;text-shadow:0 1px 4px rgba(40,30,60,0.6);}
+#logo p{font-size:10px;letter-spacing:0.18em;color:#ffd6b0;margin-top:3px;font-weight:600;text-shadow:0 1px 4px rgba(40,30,60,0.6);}
+#socials{position:absolute;top:20px;right:20px;display:flex;flex-direction:column;gap:8px;pointer-events:all;}
+.sl{font-size:11px;letter-spacing:0.1em;color:#ffcaa6;text-decoration:none;text-transform:lowercase;transition:color 0.25s;font-weight:700;text-shadow:0 1px 4px rgba(40,30,60,0.6);}
+.sl:hover{color:#fff0e0;}
+#xhair{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);display:none;pointer-events:none;width:16px;height:16px;}
+#xhair::before,#xhair::after{content:'';position:absolute;background:rgba(255,255,255,0.85);box-shadow:0 0 4px rgba(150,110,255,0.9);}
+#xhair::before{width:2px;height:16px;left:7px;top:0;}
+#xhair::after{width:16px;height:2px;top:7px;left:0;}
+#splash{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:all;}
+#splash p{font-size:13px;letter-spacing:0.14em;color:#3a6a4e;margin-bottom:4px;font-weight:600;text-shadow:0 1px 4px rgba(255,255,255,0.5);}
+#enter{margin-top:20px;display:inline-block;border:none;color:#fff;padding:11px 34px;font-size:13px;letter-spacing:0.16em;text-transform:lowercase;cursor:pointer;font-family:'Baloo 2',sans-serif;font-weight:800;transition:all 0.2s;background:linear-gradient(135deg,#5fbf86,#3f9e6a);border-radius:22px;box-shadow:0 5px 18px rgba(45,110,75,0.45);}
+#enter:hover{transform:translateY(-2px) scale(1.03);box-shadow:0 10px 30px rgba(45,140,90,0.55);}
+#ihint{position:absolute;bottom:96px;left:50%;transform:translateX(-50%);font-size:14px;letter-spacing:0.08em;color:#fff;pointer-events:none;opacity:0;transition:opacity 0.25s;background:rgba(45,110,75,0.92);padding:11px 24px;border:none;border-radius:22px;font-weight:700;text-transform:lowercase;box-shadow:0 4px 16px rgba(30,80,55,0.5);}
+#ihint.touch{pointer-events:all;cursor:pointer;}
+#nav{position:absolute;bottom:20px;right:20px;display:flex;flex-direction:column;gap:8px;pointer-events:all;}
+.nb{background:rgba(255,255,255,0.82);border:2px solid rgba(95,191,134,0.7);color:#1d4a32;padding:6px 16px;font-size:11px;letter-spacing:0.05em;cursor:pointer;text-transform:lowercase;transition:all 0.2s;font-family:'Baloo 2',sans-serif;text-align:left;font-weight:800;border-radius:16px;box-shadow:0 2px 9px rgba(45,110,75,0.22);}
+.nb:hover{background:#5fbf86;color:#fff;border-color:#5fbf86;transform:translateX(-3px);}
+#controls{position:absolute;bottom:20px;left:20px;pointer-events:none;}
+#controls p{font-size:11px;letter-spacing:0.02em;color:#235640;line-height:1.8;font-weight:600;text-shadow:0 1px 2px rgba(255,255,255,0.6);}
+#panel{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:340px;max-width:88vw;background:rgba(248,252,249,0.98);border:2px solid rgba(95,191,134,0.5);padding:28px 32px;display:none;pointer-events:all;z-index:10;border-radius:24px;box-shadow:0 14px 50px rgba(30,80,55,0.35);}
+#panel h2{font-size:17px;letter-spacing:0.06em;color:#1d4a32;text-transform:lowercase;font-weight:800;margin-bottom:16px;}
+#pbody{font-size:14px;line-height:1.9;color:#2e5a42;font-weight:500;}
+#pbody a{color:#1d8a5a;text-decoration:none;display:block;margin:3px 0;transition:color 0.2s;font-weight:700;}
+#pbody a:hover{color:#0e6a42;}
+#pclose{position:absolute;top:12px;right:18px;background:none;border:none;color:#5fbf86;cursor:pointer;font-size:24px;font-family:sans-serif;line-height:1;font-weight:700;}
+#pclose:hover{color:#1d4a32;}
+.si{border:2px solid rgba(95,191,134,0.3);padding:14px;margin:8px 0;border-radius:16px;}
+.si h3{font-size:13px;letter-spacing:0.04em;color:#1d4a32;margin-bottom:4px;text-transform:lowercase;font-weight:800;}
+.si p{font-size:13px;color:#3a6a4e;margin-bottom:10px;line-height:1.5;font-weight:500;}
+.bb{background:linear-gradient(135deg,#5fbf86,#3f9e6a);border:none;color:#fff;padding:9px 18px;font-size:12px;letter-spacing:0.04em;cursor:pointer;font-family:'Baloo 2',sans-serif;text-transform:lowercase;transition:all 0.2s;font-weight:800;border-radius:18px;}
+.bb:hover{transform:scale(1.04);}
+.divider{border:none;border-top:2px solid rgba(95,191,134,0.2);margin:14px 0;}
+/* ── mobile touch controls ── */
+#touchUI{position:absolute;inset:0;pointer-events:none;display:none;z-index:8;}
+#tlook{position:absolute;top:0;right:0;width:55%;height:100%;pointer-events:all;}
+#tmove{position:absolute;bottom:24px;left:24px;width:130px;height:130px;pointer-events:all;}
+#tnub{position:absolute;width:130px;height:130px;border-radius:50%;border:2px solid rgba(45,110,75,0.4);background:rgba(95,191,134,0.18);}
+#tstick{position:absolute;left:43px;top:43px;width:44px;height:44px;border-radius:50%;background:rgba(95,191,134,0.7);border:2px solid rgba(45,110,75,0.7);}
+.tbtn{position:absolute;right:24px;width:62px;height:62px;border-radius:50%;border:2px solid rgba(45,110,75,0.5);background:rgba(95,191,134,0.45);color:#1d4a32;font-size:22px;font-weight:700;display:flex;align-items:center;justify-content:center;pointer-events:all;font-family:sans-serif;user-select:none;}
+#tup{bottom:104px;}
+#tdown{bottom:24px;}
+</style>
+</head>
+<body>
+<audio id="bgAudio" src="Dearly Flahloved 135bpm Eb.mp3" loop preload="auto"></audio>
+<canvas id="c"></canvas>
+<div id="hud">
+  <div id="logo"><h1>flah</h1><p>music · samples · blog</p></div>
+  <div id="socials">
+    <a class="sl" href="https://www.youtube.com/@flah_music" target="_blank">youtube</a>
+    <a class="sl" href="https://www.facebook.com/profile.php?id=61583931599745" target="_blank">facebook</a>
+    <a class="sl" href="https://www.instagram.com/flahmusic/" target="_blank">instagram</a>
+    <a class="sl" href="https://flahobino.bandcamp.com/" target="_blank">bandcamp</a>
+  </div>
+  <div id="xhair"></div>
+  <div id="splash">
+    <p>an interactive space</p>
+    <div id="enter">enter</div>
+  </div>
+  <div id="ihint">[ e ] interact</div>
+  <div id="nav">
+    <button class="nb" onclick="openPanel('music')">music</button>
+    <button class="nb" onclick="openPanel('store')">store</button>
+    <button class="nb" onclick="openPanel('blog')">blog</button>
+    <button class="nb" onclick="openPanel('contact')">contact</button>
+  </div>
+  <div id="controls">
+    <p>wasd — move · mouse — look<br>space — up · shift — down<br>e — interact</p>
+  </div>
+  <div id="panel">
+    <button id="pclose" onclick="closePanel()">×</button>
+    <h2 id="ptitle"></h2>
+    <div id="pbody"></div>
+  </div>
+  <div id="touchUI">
+    <div id="tlook"></div>
+    <div id="tmove"><div id="tnub"></div><div id="tstick"></div></div>
+    <div id="tup" class="tbtn">▲</div>
+    <div id="tdown" class="tbtn">▼</div>
+  </div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+var IS_TOUCH = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+
+// ── BACKGROUND MUSIC ──
+// browsers block UNMUTED autoplay until the user interacts with the page,
+// so we try immediately, and if that's refused we start on the very first
+// tap / click / key (which includes hitting "enter").
+(function(){
+  var bg=document.getElementById('bgAudio');
+  if(!bg)return;
+  bg.volume=0.6;
+  var kicked=false;
+  function go(){
+    if(kicked)return;
+    var pr=bg.play();
+    if(pr&&pr.then){pr.then(function(){kicked=true;clean();}).catch(function(){});}
+    else{kicked=true;clean();}
+  }
+  function clean(){
+    ['pointerdown','touchstart','keydown','click'].forEach(function(ev){
+      window.removeEventListener(ev,go);
+    });
+  }
+  // attempt right away (works if the browser allows it)
+  go();
+  // fallback: first user gesture unlocks audio
+  ['pointerdown','touchstart','keydown','click'].forEach(function(ev){
+    window.addEventListener(ev,go,{passive:true});
+  });
+})();
+
+// ── SCENE ──
+var scene=new THREE.Scene();
+var camera=new THREE.PerspectiveCamera(72,innerWidth/innerHeight,0.05,140);
+camera.position.set(0,1.4,8);
+var renderer=new THREE.WebGLRenderer({canvas:document.getElementById('c'),antialias:!IS_TOUCH,powerPreference:'high-performance'});
+renderer.setSize(innerWidth,innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, IS_TOUCH?1.5:2));
+renderer.setClearColor(0x2a2d34,1);
+// filmic tone mapping rolls off highlights so lit pastel faces never clip to pure white
+renderer.toneMapping=THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure=1.0;
+scene.fog=new THREE.FogExp2(0x3a3e48,0.016);
+
+// ── LIGHTING — softened so matte pastel albedo reads (no blowout) ──
+scene.add(new THREE.AmbientLight(0x9498a8,0.8));
+var sun=new THREE.DirectionalLight(0xffffff,0.7);sun.position.set(6,20,4);scene.add(sun);
+var pl1=new THREE.PointLight(0xc890ff,0.7,50);pl1.position.set(0,12,-6);scene.add(pl1);   // violet
+var pl2=new THREE.PointLight(0x80d0ff,0.7,50);pl2.position.set(0,10,2);scene.add(pl2);    // cyan
+
+function mat(c,op,r,m,em,ei){
+  op=(op===undefined)?1:op;r=(r===undefined)?0.5:r;m=(m===undefined)?0.15:m;
+  var o={color:c,transparent:op<1,opacity:op,roughness:r,metalness:m};
+  if(em){o.emissive=new THREE.Color(em);o.emissiveIntensity=(ei===undefined)?0.6:ei;}
+  return new THREE.MeshStandardMaterial(o);
+}
+
+// ── ROOM — seafoam / avocado ──
+function mkPlane(w,h,rx,ry,x,y,z,col){
+  var mesh=new THREE.Mesh(new THREE.PlaneGeometry(w,h),mat(col,1,0.8,0.05));
+  mesh.material.side=THREE.DoubleSide;
+  mesh.rotation.set(rx,ry,0);mesh.position.set(x,y,z);scene.add(mesh);
+}
+mkPlane(80,80,-Math.PI/2,0,0,-3.2,0,0x3c4049);     // floor
+mkPlane(80,24,0,0,0,9,-30,0x4a4e58);               // back
+mkPlane(80,24,0,Math.PI,0,9,16,0x4a4e58);          // front
+mkPlane(80,24,0,Math.PI/2,30,9,0,0x454952);        // right
+mkPlane(80,24,0,-Math.PI/2,-30,9,0,0x454952);      // left
+
+// ── GLASS DOME + SKY + RAINBOW PRISM CASCADE ──
+// ceiling frames a big circular opening; the glass dome caps it overhead
+var ceil=new THREE.Mesh(new THREE.RingGeometry(12,46,56,1),mat(0x4a4e58,1,0.8,0.05));
+ceil.material.side=THREE.DoubleSide;
+ceil.rotation.x=Math.PI/2;ceil.position.y=19;scene.add(ceil);
+
+var DOME_CY=11.5, DOME_R=15, DOME_TH=1.05; // cap sits above the opening, apex ~y26
+
+// sky behind the glass (gradient cap, seen from inside)
+(function(){
+  var cv2=document.createElement('canvas');cv2.width=128;cv2.height=128;
+  var g=cv2.getContext('2d');
+  var grd=g.createLinearGradient(0,0,0,128);
+  grd.addColorStop(0,'#eaf2ff');grd.addColorStop(0.55,'#aeccf4');grd.addColorStop(1,'#cfe0f5');
+  g.fillStyle=grd;g.fillRect(0,0,128,128);
+  var skyTex=new THREE.CanvasTexture(cv2);
+  var sky=new THREE.Mesh(new THREE.SphereGeometry(DOME_R+2.5,20,12,0,Math.PI*2,0,DOME_TH+0.25),
+    new THREE.MeshBasicMaterial({map:skyTex,side:THREE.BackSide,fog:false}));
+  sky.position.y=DOME_CY;scene.add(sky);
+})();
+
+// glass paneled cap — iridescent rainbow vertex colors, additive shimmer
+var domeGeo=new THREE.SphereGeometry(DOME_R,10,5,0,Math.PI*2,0,DOME_TH);
+(function(){
+  var p=domeGeo.attributes.position,n=p.count,cols=[],c=new THREE.Color();
+  for(var i=0;i<n;i++){
+    var hue=(Math.atan2(p.getZ(i),p.getX(i))/(Math.PI*2)+0.5 + p.getY(i)/DOME_R*0.25)%1;
+    if(hue<0)hue+=1;
+    c.setHSL(hue,0.75,0.6);cols.push(c.r,c.g,c.b);
+  }
+  domeGeo.setAttribute('color',new THREE.Float32BufferAttribute(cols,3));
+})();
+var domeGlass=new THREE.Mesh(domeGeo,new THREE.MeshBasicMaterial({
+  vertexColors:true,transparent:true,opacity:0.22,side:THREE.DoubleSide,
+  blending:THREE.AdditiveBlending,depthWrite:false,fog:false}));
+domeGlass.position.y=DOME_CY;scene.add(domeGlass);
+// bright rim halo around the opening
+var halo=new THREE.Mesh(new THREE.TorusGeometry(12,0.22,8,52),
+  new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:0.5,fog:false}));
+halo.rotation.x=Math.PI/2;halo.position.y=19;scene.add(halo);
+
+// ── dispersed rainbow ambient (no harsh central beam) ──
+var pl3=new THREE.PointLight(0xff90c0,0.6,60);pl3.position.set(-17,10,-6);scene.add(pl3);  // pink
+var pl4=new THREE.PointLight(0x90ffb0,0.6,60);pl4.position.set(17,10,-16);scene.add(pl4);  // green
+// soft glow pool under each stand (cheap flat additive discs — no real spotlights)
+var standGlows=[
+  {x:0,z:-13,c:0xa888f0,op:0.10},   // music  - lilac (dimmed)
+  {x:15,z:-9,c:0x5fd89a,op:0.20},   // store  - mint
+  {x:-15,z:-9,c:0xf0b070,op:0.10},  // news   - peach (dimmed)
+  {x:0,z:-25,c:0xe87ab0,op:0.20}    // contact- pink
+];
+var caustics=[];
+for(var ci2=0;ci2<standGlows.length;ci2++){
+  var sgl=standGlows[ci2];
+  var cau=new THREE.Mesh(new THREE.CircleGeometry(3.4,28),
+    new THREE.MeshBasicMaterial({color:sgl.c,transparent:true,opacity:sgl.op,blending:THREE.AdditiveBlending,depthWrite:false,fog:false}));
+  cau.rotation.x=-Math.PI/2;cau.position.set(sgl.x,-3.16,sgl.z);
+  cau.userData.ph=ci2*1.3;cau.userData.op=sgl.op;
+  caustics.push(cau);scene.add(cau);
+}
+
+// ── GRID (one merged draw call) ──
+(function(){
+  var pts=[];
+  for(var gi=-22;gi<=22;gi++){
+    pts.push(gi*1.6,-3.18,-30, gi*1.6,-3.18,16);
+    pts.push(-32,-3.18,gi*1.6, 32,-3.18,gi*1.6);
+  }
+  var gg=new THREE.BufferGeometry();gg.setAttribute('position',new THREE.Float32BufferAttribute(pts,3));
+  scene.add(new THREE.LineSegments(gg,new THREE.LineBasicMaterial({color:0x9aa0b4,transparent:true,opacity:0.28})));
+})();
+
+// ── COLLISION ──
+var colliders=[];
+function addCollider(cx,cz,hw,hd){colliders.push({cx:cx,cz:cz,hw:hw,hd:hd});}
+function resolveCollision(pos){
+  for(var i=0;i<colliders.length;i++){
+    var c=colliders[i];
+    var dx=pos.x-c.cx,dz=pos.z-c.cz;
+    var oX=c.hw-Math.abs(dx),oZ=c.hd-Math.abs(dz);
+    if(oX>0&&oZ>0){
+      if(oX<oZ){pos.x+=(dx>=0?oX:-oX);}else{pos.z+=(dz>=0?oZ:-oZ);}
+    }
+  }
+}
+
+// ── INTERACTABLES ──
+var ias=[];
+function makeGrp(label,x,y,z,ry,cw,cd){
+  ry=ry||0;
+  var g=new THREE.Group();g.position.set(x,y,z);g.rotation.y=ry;
+  g.userData.label=label;g.userData.ia=true;
+  scene.add(g);ias.push(g);
+  if(cw&&cd) addCollider(x,z,cw*0.5+0.4,cd*0.5+0.4);
+  return g;
+}
+
+// ── CANVAS-TEXT SIGN helper ──
+function makeSign(text,w,h,bg,fg){
+  var cv2=document.createElement('canvas');cv2.width=512;cv2.height=Math.round(512*h/w);
+  var g=cv2.getContext('2d');
+  // rounded light panel
+  var rad=Math.round(cv2.height*0.28);
+  g.fillStyle=bg;
+  g.beginPath();
+  g.moveTo(rad,4);g.arcTo(cv2.width-4,4,cv2.width-4,cv2.height-4,rad);
+  g.arcTo(cv2.width-4,cv2.height-4,4,cv2.height-4,rad);
+  g.arcTo(4,cv2.height-4,4,4,rad);g.arcTo(4,4,cv2.width-4,4,rad);
+  g.closePath();g.fill();
+  g.lineWidth=12;g.strokeStyle=fg;g.stroke();
+  g.fillStyle=fg;g.font='800 '+Math.round(cv2.height*0.56)+'px "Baloo 2",Arial';
+  g.textAlign='center';g.textBaseline='middle';
+  g.fillText(text,cv2.width/2,cv2.height/2+4);
+  var tex=new THREE.CanvasTexture(cv2);
+  var m=new THREE.Mesh(new THREE.PlaneGeometry(w,h),
+    new THREE.MeshBasicMaterial({map:tex,transparent:true}));
+  return m;
+}
+
+// ── SHARED LOW-POLY GEO (reuse for performance) ──
+var SPH=new THREE.SphereGeometry(1,12,12);
+var CYL=new THREE.CylinderGeometry(1,1,1,10);
+
+// ── TREES ──
+function makeTree(x,z,height,trunkCol,leafCol,scl){
+  var tg=new THREE.Group();tg.position.set(x,-3.2,z);
+  var trunk=new THREE.Mesh(CYL,mat(trunkCol,1,0.85,0.05));
+  trunk.scale.set(0.22,height,0.22);trunk.position.y=height/2;tg.add(trunk);
+  for(var ci=0;ci<4;ci++){
+    var ang=ci/4*Math.PI*2;
+    var blob=new THREE.Mesh(SPH,mat(leafCol,1,0.7,0,leafCol,0.1));
+    var s=0.6+Math.random()*0.3;
+    blob.scale.set(s,s,s);
+    blob.position.set(Math.cos(ang)*0.5,height+0.4+Math.random()*0.4,Math.sin(ang)*0.5);
+    tg.add(blob);
+  }
+  var tb=new THREE.Mesh(SPH,mat(leafCol,1,0.65,0,leafCol,0.12));tb.scale.set(0.8,0.8,0.8);tb.position.y=height+0.8;tg.add(tb);
+  tg.scale.setScalar(scl||1);
+  scene.add(tg);addCollider(x,z,0.8*(scl||1),0.8*(scl||1));
+}
+// edges only — kept clear of stations + the store's media orbit
+makeTree(-16,-4,6,0x4a3a28,0x5fb878,1.3);
+makeTree(16,-5,7,0x44341f,0x6ac888,1.5);
+makeTree(-25,-12,5,0x3e3018,0x55ac6c,1.1);
+makeTree(25,-13,6.5,0x4a3a28,0x62c07e,1.35);
+makeTree(-15,-26,8,0x44341f,0x5cb474,1.6);
+makeTree(15,-25,5,0x4a3a28,0x6ac888,1.0);
+makeTree(-27,2,6,0x3e3018,0x5fb878,1.2);
+makeTree(27,2,7,0x44341f,0x66c082,1.4);
+makeTree(-21,-20,5.5,0x4a3a28,0x55ac6c,1.15);
+makeTree(21,-21,6,0x3e3018,0x62c07e,1.25);
+makeTree(-19,-30,7.5,0x44341f,0x5cb474,1.45);
+makeTree(19,-30,8,0x4a3a28,0x6ac888,1.6);
+
+// ── CONTACT KIOSK (signed, like news/store) ──
+var ct=makeGrp('contact',0,-3.2,-25,0,2.4,1.6);
+var ctbase=new THREE.Mesh(new THREE.CylinderGeometry(1.1,1.3,0.3,12),mat(0xe6c4dc,1,0.95,0));ctbase.position.y=0.15;ct.add(ctbase);
+var ctbody=new THREE.Mesh(new THREE.BoxGeometry(1.9,2.2,0.9),mat(0xd9a8c8,1,0.95,0));ctbody.position.y=1.4;ct.add(ctbody);
+var ctscr=new THREE.Mesh(new THREE.BoxGeometry(1.5,1.2,0.04),new THREE.MeshStandardMaterial({color:0x202838,emissive:new THREE.Color(0xff90c0),emissiveIntensity:0.5,transparent:true,opacity:0.9}));
+ctscr.position.set(0,1.6,0.47);ct.add(ctscr);
+for(var cl2=0;cl2<4;cl2++){
+  var cline=new THREE.Mesh(new THREE.BoxGeometry(0.9+Math.random()*0.4,0.04,0.02),mat(0xffc0e0,0.8,0.1,0,0xffc0e0,0.8));
+  cline.position.set(-0.1,1.9-cl2*0.22,0.49);ct.add(cline);
+}
+var contactSign=makeSign('contact',2.6,0.8,'#f4fbf2','#b0408a');
+contactSign.position.set(0,3.4,0.2);contactSign.userData.billboard=true;ct.add(contactSign);
+var ctfin=new THREE.Mesh(new THREE.BoxGeometry(2.2,0.12,0.6),mat(0xe6c4dc,1,0.95,0,0xff90c0,0.4));ctfin.position.set(0,2.75,0.1);ct.add(ctfin);
+
+// ── NEWS STAND (blog) ──
+var ns=makeGrp('blog',-15,-3.2,-9,0.4,2.5,1.6);
+var nbase=new THREE.Mesh(new THREE.CylinderGeometry(1.2,1.4,0.3,12),mat(0xf2d4ba,1,0.95,0));nbase.position.y=0.15;ns.add(nbase);
+var nbody=new THREE.Mesh(new THREE.BoxGeometry(2.0,2.2,0.9),mat(0xe8bf9a,1,0.95,0));nbody.position.y=1.4;ns.add(nbody);
+for(var ni=0;ni<3;ni++){
+  var nscr=new THREE.Mesh(new THREE.BoxGeometry(1.5,0.35,0.04),new THREE.MeshStandardMaterial({color:0x2a2444,emissive:new THREE.Color(0x60d0ff),emissiveIntensity:0.7,transparent:true,opacity:0.92}));
+  nscr.position.set(0,2.0-ni*0.42,0.47);ns.add(nscr);
+}
+var newsSign=makeSign('news',2.4,0.9,'#f4fbf2','#147a8a');
+newsSign.position.set(0,3.4,0.2);newsSign.userData.billboard=true;ns.add(newsSign);
+var nfin=new THREE.Mesh(new THREE.BoxGeometry(2.3,0.12,0.6),mat(0xf2d4ba,1,0.95,0,0x80c0ff,0.4));nfin.position.set(0,2.75,0.1);ns.add(nfin);
+for(var nr=0;nr<2;nr++){
+  var nring=new THREE.Mesh(new THREE.TorusGeometry(1.5+nr*0.3,0.03,6,24),new THREE.MeshBasicMaterial({color:0x80d0ff,transparent:true,opacity:0.5}));
+  nring.rotation.x=Math.PI/2;nring.position.y=1.2;nring.userData.newsRing=true;nring.userData.ringIdx=nr;ns.add(nring);
+}
+
+// ── STORE — concession stand (open counter + awning) ──
+var shop=makeGrp('store',15,-3.2,-9,-0.4,3.4,2);
+// counter base
+var counter=new THREE.Mesh(new THREE.BoxGeometry(3.2,1.2,1.3),mat(0xb8e6cc,1,0.95,0));counter.position.y=0.6;shop.add(counter);
+// counter top
+var ctop=new THREE.Mesh(new THREE.BoxGeometry(3.4,0.12,1.5),mat(0xd4f0e0,1,0.95,0));ctop.position.y=1.25;shop.add(ctop);
+// back wall of stand
+var sback=new THREE.Mesh(new THREE.BoxGeometry(3.2,2.4,0.18),mat(0xa0dcbc,1,0.95,0));sback.position.set(0,2.0,-0.6);shop.add(sback);
+// support posts
+[-1.5,1.5].forEach(function(px){
+  var post=new THREE.Mesh(CYL,mat(0xc8ecd8,1,0.95,0));post.scale.set(0.09,3.4,0.09);post.position.set(px,1.7,0.6);shop.add(post);
+});
+// striped awning (a few angled bars)
+for(var aw=0;aw<6;aw++){
+  var ac=(aw%2===0)?0xe0d0ff:0xb090f0;
+  var awn=new THREE.Mesh(new THREE.BoxGeometry(0.56,0.06,1.4),mat(ac,1,0.5,0.1,ac,0.12));
+  awn.position.set(-1.4+aw*0.56,3.5,0.5);awn.rotation.x=-0.32;shop.add(awn);
+}
+// STORE sign on the awning front
+var storeSign=makeSign('store',2.6,0.85,'#f4fbf2','#1d6a44');
+storeSign.position.set(0,3.95,1.15);storeSign.userData.billboard=false;storeSign.rotation.x=-0.18;shop.add(storeSign);
+addCollider(11,-11,3.4,2);
+
+// ── FLOATING MEDIA — wide own-space orbit ABOVE the stand ──
+var mediaList=[];
+var mediaPivot=new THREE.Group();mediaPivot.position.set(15,0,-9);scene.add(mediaPivot);
+
+function buildCassette(){
+  var g=new THREE.Group();
+  g.add(new THREE.Mesh(new THREE.BoxGeometry(0.5,0.3,0.12),mat(0x9a78d8,1,0.4,0.3)));
+  [-0.13,0.13].forEach(function(rx){
+    var sp=new THREE.Mesh(CYL,mat(0x2a2040,1,0.3,0.4));sp.scale.set(0.08,0.14,0.08);sp.rotation.x=Math.PI/2;sp.position.set(rx,0,0);g.add(sp);
+    var hub=new THREE.Mesh(CYL,mat(0xe8d8ff,1,0.2,0.5,0xc8a8ff,0.6));hub.scale.set(0.035,0.15,0.035);hub.rotation.x=Math.PI/2;hub.position.set(rx,0,0);g.add(hub);
+  });
+  var lab=new THREE.Mesh(new THREE.BoxGeometry(0.32,0.13,0.01),mat(0xfff0ff,1,0.3,0));lab.position.set(0,0.02,0.062);g.add(lab);
+  return g;
+}
+function buildMiniDisc(){
+  var g=new THREE.Group();
+  var sh=new THREE.Mesh(new THREE.BoxGeometry(0.3,0.3,0.04),mat(0x8870d8,1,0.3,0.5,0xa888ff,0.3));g.add(sh);
+  var win=new THREE.Mesh(CYL,mat(0xe0d0ff,1,0.1,0.7,0xc8b0ff,0.5));win.scale.set(0.11,0.05,0.11);win.rotation.x=Math.PI/2;win.position.z=0.03;g.add(win);
+  return g;
+}
+function buildCD(){
+  var g=new THREE.Group();
+  var spin=new THREE.Group();
+  var d=new THREE.Mesh(CYL,new THREE.MeshStandardMaterial({color:0xede0ff,emissive:new THREE.Color(0x9070ff),emissiveIntensity:0.4,roughness:0.05,metalness:0.9,transparent:true,opacity:0.9}));
+  d.scale.set(0.26,0.02,0.26);spin.add(d);
+  var h=new THREE.Mesh(CYL,mat(0x4a3a70,1,0.4,0.4));h.scale.set(0.045,0.03,0.045);spin.add(h);
+  g.add(spin);
+  g.rotation.x=0.95;            // fixed tilt so the face reads, not edge-on
+  g.userData.spin=spin;         // inner group spins around the face normal
+  return g;
+}
+var media=[buildCassette(),buildMiniDisc(),buildCD()];
+media.forEach(function(m,i){
+  m.userData.idx=i;m.userData.ang=i/3*Math.PI*2;
+  mediaPivot.add(m);mediaList.push(m);
+});
+
+// ── MUSIC — cassette boombox on a drawer (the centerpiece, biggest + tallest) ──
+var sg=makeGrp('music',0,-3.2,-13,0,3.0,2.0);
+// drawer cabinet
+var cab=new THREE.Mesh(new THREE.BoxGeometry(2.6,2.4,1.5),mat(0xc4b0e8,1,0.95,0));cab.position.y=1.2;sg.add(cab);
+var cabTop=new THREE.Mesh(new THREE.BoxGeometry(2.95,0.16,1.75),mat(0xd2c2f0,1,0.95,0));cabTop.position.y=2.48;sg.add(cabTop);
+for(var dr=0;dr<3;dr++){
+  var df=new THREE.Mesh(new THREE.BoxGeometry(2.3,0.62,0.06),mat(0xd2c2f0,1,0.95,0));
+  df.position.set(0,0.55+dr*0.74,0.77);sg.add(df);
+  var dh=new THREE.Mesh(CYL,mat(0xd8d0c0,1,0.3,0.7));dh.scale.set(0.5,0.04,0.04);dh.rotation.z=Math.PI/2;
+  dh.position.set(0,0.55+dr*0.74,0.82);sg.add(dh);
+}
+// boombox on top
+var bb=new THREE.Group();bb.position.set(0,3.1,0.1);sg.add(bb);
+var bbBody=new THREE.Mesh(new THREE.BoxGeometry(2.8,1.1,0.7),mat(0xc8ccd2,1,0.4,0.5));bb.add(bbBody);
+[-0.85,0.85].forEach(function(sx){
+  var spk=new THREE.Mesh(CYL,mat(0x2a2e36,1,0.5,0.3));spk.scale.set(0.34,0.06,0.34);spk.rotation.x=Math.PI/2;spk.position.set(sx,0,0.36);bb.add(spk);
+  var spk2=new THREE.Mesh(CYL,mat(0x4a4e58,1,0.5,0.3));spk2.scale.set(0.22,0.07,0.22);spk2.rotation.x=Math.PI/2;spk2.position.set(sx,0,0.38);bb.add(spk2);
+  var spk3=new THREE.Mesh(CYL,mat(0x6a6e78,1,0.4,0.4));spk3.scale.set(0.08,0.08,0.08);spk3.rotation.x=Math.PI/2;spk3.position.set(sx,0,0.40);bb.add(spk3);
+});
+// cassette deck window + reels
+var deck=new THREE.Mesh(new THREE.BoxGeometry(0.95,0.5,0.04),mat(0x14181e,1,0.3,0.4,0x60d0ff,0.22));deck.position.set(0,0.12,0.36);bb.add(deck);
+[-0.18,0.18].forEach(function(rx){
+  var reel=new THREE.Mesh(CYL,mat(0x3a3e46,1,0.4,0.3));reel.scale.set(0.07,0.05,0.07);reel.rotation.x=Math.PI/2;reel.position.set(rx,0.12,0.39);bb.add(reel);
+});
+// carry handle
+var handle=new THREE.Mesh(new THREE.TorusGeometry(0.5,0.04,8,16,Math.PI),mat(0x3a3e46,1,0.4,0.5));
+handle.position.set(0,0.55,0);bb.add(handle);
+// EQ screen + colorful knobs
+var eq=new THREE.Mesh(new THREE.BoxGeometry(0.7,0.18,0.03),new THREE.MeshStandardMaterial({color:0x081018,emissive:new THREE.Color(0x40ffa0),emissiveIntensity:0.6}));eq.position.set(0,0.4,0.36);bb.add(eq);
+var knobCols=[0xff6b6b,0xffd93b,0x6bd96b,0x6bb6ff,0xb66bff];
+for(var kk=0;kk<5;kk++){
+  var kb2=new THREE.Mesh(CYL,mat(knobCols[kk],1,0.4,0.3));kb2.scale.set(0.05,0.05,0.05);kb2.rotation.x=Math.PI/2;
+  kb2.position.set(-0.5+kk*0.25,-0.4,0.36);bb.add(kb2);
+}
+// MUSIC sign — highest of all
+var musicSign=makeSign('music',3.2,0.95,'#f4fbf2','#0e7a52');
+musicSign.position.set(0,5.2,0);musicSign.userData.billboard=true;sg.add(musicSign);
+
+// ── SLIMES (Dragon Quest style, lighter mesh count) ──
+var slimeList=[];
+var slimePalette=[
+  {body:0x5ab0e8,eye:0x1a2a3a},{body:0xe87070,eye:0x3a1010},
+  {body:0x70d870,eye:0x102a10},{body:0xe8c830,eye:0x2a2000},
+  {body:0xb870e8,eye:0x20082a},{body:0xe87cb0,eye:0x2a0820},
+];
+function makeSlime(x,y,z,scale,colIdx,floatOff){
+  scale=scale||1;
+  var c=slimePalette[colIdx%slimePalette.length];
+  var g=new THREE.Group();g.position.set(x,y,z);scene.add(g);
+  var body=new THREE.Mesh(SPH,mat(c.body,1,0.3,0.05,c.body,0.06));
+  body.scale.set(0.42*scale,0.34*scale,0.42*scale);body.position.y=0.05*scale;g.add(body);
+  var curl=new THREE.Mesh(SPH,mat(c.body,1,0.3,0,c.body,0.05));
+  curl.scale.set(0.09*scale,0.26*scale,0.09*scale);curl.position.set(0.05*scale,0.5*scale,0);curl.rotation.z=-0.3;g.add(curl);
+  // ── EYES: round (idle) + happy ^_^ (bump) ──
+  var roundEyes=[],happyEyes=[];
+  [-0.15,0.15].forEach(function(ex){
+    var ew=new THREE.Mesh(SPH,mat(0xffffff,1,0.1,0));ew.scale.set(0.085*scale,0.1*scale,0.06*scale);ew.position.set(ex*scale,0.16*scale,0.36*scale);g.add(ew);roundEyes.push(ew);
+    var pu=new THREE.Mesh(SPH,mat(c.eye,1,0.8,0));pu.scale.set(0.05*scale,0.05*scale,0.05*scale);pu.position.set(ex*scale,0.16*scale,0.41*scale);g.add(pu);roundEyes.push(pu);
+    // happy ^ arc (hidden until bump)
+    var he=new THREE.Mesh(new THREE.TorusGeometry(0.055*scale,0.014*scale,5,12,Math.PI),mat(c.eye,1,0.7,0));
+    he.position.set(ex*scale,0.15*scale,0.4*scale);he.visible=false;g.add(he);happyEyes.push(he);
+  });
+  // ── IDLE SMILE: curved ∪ line ──
+  var smile=new THREE.Mesh(new THREE.TorusGeometry(0.11*scale,0.02*scale,6,14,Math.PI),mat(0x2a1418,1,0.6,0));
+  smile.rotation.z=Math.PI;smile.position.set(0,-0.01*scale,0.4*scale);g.add(smile);
+  // ── BUMP GRIN: flat-top half-disk + tongue (hidden until bump) ──
+  var grin=new THREE.Mesh(new THREE.CircleGeometry(0.13*scale,18,Math.PI,Math.PI),mat(0x2a1418,1,0.6,0));
+  grin.position.set(0,-0.02*scale,0.4*scale);grin.visible=false;g.add(grin);
+  var tongue=new THREE.Mesh(SPH,mat(0xff7a88,1,0.5,0));
+  tongue.scale.set(0.07*scale,0.04*scale,0.03*scale);tongue.position.set(0,-0.08*scale,0.41*scale);tongue.visible=false;g.add(tongue);
+  g.userData.roundEyes=roundEyes;g.userData.happyEyes=happyEyes;
+  g.userData.smile=smile;g.userData.grin=grin;g.userData.tongue=tongue;
+  g.userData.sx=x;g.userData.sz=z;
+  var rr=0.55*scale+0.9;g.userData.r2=rr*rr;
+  g.userData.floatOffset=floatOff||0;g.userData.baseY=y;
+  addCollider(x,z,0.55*scale,0.55*scale);
+  slimeList.push(g);return g;
+}
+var slimeData=[
+  [-6,0.6,-7,0.9,0],[6,0.6,-7,0.8,1],[-3,0.6,-4,0.7,2],[3,0.6,-4,0.75,3],
+  [-9,0.6,-16,0.85,4],[9,0.6,-16,0.8,5],[-5,0.6,-21,0.9,0],[5,0.6,-21,0.7,2],
+];
+slimeData.forEach(function(d,i){makeSlime(d[0],d[1],d[2],d[3],d[4],i*0.9);});
+
+// ── AMBIENT ORBS (fewer) ──
+var orbList=[];
+var orbCols=[0xc8b0ff,0x90d0ff,0xffd0f0,0xd0c0ff,0xe0b0e8];
+for(var oi=0;oi<6;oi++){
+  var og=new THREE.Mesh(SPH,new THREE.MeshBasicMaterial({color:orbCols[oi%5],transparent:true,opacity:0.8}));
+  var s=0.06+Math.random()*0.07;og.scale.set(s,s,s);
+  og.position.set(-14+Math.random()*28,2+Math.random()*5,-4-Math.random()*22);
+  og.userData.floatOffset=Math.random()*6.28;og.userData.baseY=og.position.y;
+  orbList.push(og);scene.add(og);
+}
+
+// ── STARS (lighter) ──
+var sv=[];
+for(var si3=0;si3<500;si3++) sv.push((Math.random()-0.5)*130,Math.random()*40+8,(Math.random()-0.5)*130);
+var sgeom=new THREE.BufferGeometry();sgeom.setAttribute('position',new THREE.Float32BufferAttribute(sv,3));
+scene.add(new THREE.Points(sgeom,new THREE.PointsMaterial({color:0xffffff,size:0.08,transparent:true,opacity:0.4})));
+
+// precompute interactable meshes for raycast (once)
+var iaMeshes=[];
+ias.forEach(function(g){g.traverse(function(ch){if(ch.isMesh)iaMeshes.push(ch);});});
+// collect billboard signs once
+var billboards=[];
+ias.forEach(function(g){g.traverse(function(ch){if(ch.userData.billboard)billboards.push(ch);});});
+var _wp=new THREE.Vector3();
+
+// ── INPUT ──
+var started=false,panelOpen=false;
+var keys={};
+var euler=new THREE.Euler(0,0,0,'YXZ');
+var vel=new THREE.Vector3();
+var SPEED=0.06,DAMP=0.85;
+var moveX=0,moveZ=0,flyUp=0; // analog inputs (touch + keys merge)
+
+document.addEventListener('keydown',function(e){
+  keys[e.code]=true;
+  if(e.code==='KeyE'&&nearObj&&started&&!panelOpen){openPanel(nearObj);if(!IS_TOUCH)document.exitPointerLock();}
+  if(e.code==='Escape'&&panelOpen){closePanel();}
+});
+document.addEventListener('keyup',function(e){keys[e.code]=false;});
+
+var cv=document.getElementById('c');
+document.getElementById('enter').addEventListener('click',function(){
+  if(IS_TOUCH){startExperience();}else{cv.requestPointerLock();}
+});
+
+function startExperience(){
+  started=true;
+  document.getElementById('splash').style.display='none';
+  document.getElementById('xhair').style.display=IS_TOUCH?'none':'block';
+  if(IS_TOUCH){document.getElementById('touchUI').style.display='block';document.getElementById('ihint').classList.add('touch');document.getElementById('controls').style.display='none';}
+}
+
+// desktop pointer lock
+document.addEventListener('pointerlockchange',function(){
+  if(IS_TOUCH)return;
+  var locked=document.pointerLockElement===cv;
+  if(locked){started=true;startExperience();}
+  else if(!panelOpen){ // genuine exit (ESC), not a panel pause
+    document.getElementById('xhair').style.display='none';
+    document.getElementById('splash').style.display='block';
+    started=false;
+  }
+  // if a panel is open, the unlock is intentional — keep the session alive
+});
+document.addEventListener('mousemove',function(e){
+  if(!started||IS_TOUCH||document.pointerLockElement!==cv)return;
+  euler.setFromQuaternion(camera.quaternion);
+  euler.y-=e.movementX*0.0016;euler.x-=e.movementY*0.0016;
+  euler.x=Math.max(-Math.PI/2,Math.min(Math.PI/2,euler.x));
+  camera.quaternion.setFromEuler(euler);
+});
+
+// ── TOUCH CONTROLS ──
+if(IS_TOUCH){
+  var lookId=null,lookX=0,lookY=0;
+  var moveId=null,moveCX=0,moveCY=0;
+  var tstick=document.getElementById('tstick');
+  var look=document.getElementById('tlook'),move=document.getElementById('tmove');
+  look.addEventListener('touchstart',function(e){var t=e.changedTouches[0];lookId=t.identifier;lookX=t.clientX;lookY=t.clientY;},{passive:true});
+  look.addEventListener('touchmove',function(e){
+    for(var i=0;i<e.changedTouches.length;i++){var t=e.changedTouches[i];if(t.identifier===lookId){
+      euler.setFromQuaternion(camera.quaternion);
+      euler.y-=(t.clientX-lookX)*0.005;euler.x-=(t.clientY-lookY)*0.005;
+      euler.x=Math.max(-Math.PI/2,Math.min(Math.PI/2,euler.x));
+      camera.quaternion.setFromEuler(euler);
+      lookX=t.clientX;lookY=t.clientY;
+    }}
+  },{passive:true});
+  look.addEventListener('touchend',function(e){for(var i=0;i<e.changedTouches.length;i++){if(e.changedTouches[i].identifier===lookId)lookId=null;}},{passive:true});
+
+  move.addEventListener('touchstart',function(e){var t=e.changedTouches[0];moveId=t.identifier;var r=move.getBoundingClientRect();moveCX=r.left+r.width/2;moveCY=r.top+r.height/2;},{passive:true});
+  move.addEventListener('touchmove',function(e){
+    for(var i=0;i<e.changedTouches.length;i++){var t=e.changedTouches[i];if(t.identifier===moveId){
+      var dx=t.clientX-moveCX,dy=t.clientY-moveCY;var mag=Math.min(Math.sqrt(dx*dx+dy*dy),55);var ang=Math.atan2(dy,dx);
+      var nx=Math.cos(ang)*mag,ny=Math.sin(ang)*mag;
+      tstick.style.left=(43+nx)+'px';tstick.style.top=(43+ny)+'px';
+      moveX=nx/55;moveZ=ny/55;
+    }}
+  },{passive:true});
+  move.addEventListener('touchend',function(e){for(var i=0;i<e.changedTouches.length;i++){if(e.changedTouches[i].identifier===moveId){moveId=null;moveX=0;moveZ=0;tstick.style.left='43px';tstick.style.top='43px';}}},{passive:true});
+
+  var up=document.getElementById('tup'),down=document.getElementById('tdown');
+  up.addEventListener('touchstart',function(e){e.preventDefault();flyUp=1;},{passive:false});
+  up.addEventListener('touchend',function(){flyUp=0;},{passive:true});
+  down.addEventListener('touchstart',function(e){e.preventDefault();flyUp=-1;},{passive:false});
+  down.addEventListener('touchend',function(){flyUp=0;},{passive:true});
+
+  document.getElementById('ihint').addEventListener('click',function(){if(nearObj&&!panelOpen)openPanel(nearObj);});
+}
+
+// ── INTERACTION (throttled) ──
+var ray=new THREE.Raycaster();var nearObj=null;var iaFrame=0;
+function checkIA(){
+  ray.setFromCamera({x:0,y:0},camera);
+  var hits=ray.intersectObjects(iaMeshes,false);
+  var ih=document.getElementById('ihint');
+  if(hits.length&&hits[0].distance<5){
+    var o=hits[0].object;while(o.parent&&!o.userData.ia&&o.parent!==scene)o=o.parent;
+    nearObj=o.userData.label||null;ih.style.opacity=nearObj?'1':'0';
+    if(nearObj&&IS_TOUCH)ih.textContent='tap to open '+nearObj;
+    else if(nearObj)ih.textContent='[ e ] '+nearObj;
+  }else{nearObj=null;ih.style.opacity='0';}
+}
+
+// ── flah tracks: drop audio files next to this html (e.g. a "tracks" folder)
+//    on netlify, then list them here. visitors stream them free. ──
+var tracks=[
+  // {title:'track one', src:'tracks/track1.wav'},
+  // {title:'track two', src:'tracks/track2.wav'},
+];
+function buildMusicBody(){
+  var list='';
+  for(var i=0;i<tracks.length;i++){
+    list+='<button class="bb" style="display:block;width:100%;text-align:left;margin:4px 0" onclick="playTrack('+i+')">▶ '+tracks[i].title+'</button>';
+  }
+  if(!tracks.length)list='<div style="font-size:11px;color:#9aa0b4">tracks coming soon</div>';
+  return '<div style="font-size:11px;color:#9aa0b4;letter-spacing:0.1em;margin-bottom:8px">listen free</div>'
+    +'<audio id="flahAudio" controls style="width:100%;margin-bottom:10px"></audio>'
+    +list
+    +'<hr class="divider"><div style="font-size:11px;color:#9aa0b4;letter-spacing:0.1em;margin-bottom:6px">stream</div>'
+    +'<a href="https://www.youtube.com/@flah_music" target="_blank">→ youtube</a>'
+    +'<a href="https://flahobino.bandcamp.com/" target="_blank">→ bandcamp</a>'
+    +'<span style="color:#6a7088;display:block;margin:3px 0;font-weight:700">→ spotify (soon)</span>'
+    +'<span style="color:#6a7088;display:block;margin:3px 0;font-weight:700">→ apple music (soon)</span>';
+}
+function playTrack(i){
+  var a=document.getElementById('flahAudio');
+  if(!a||!tracks[i])return;
+  a.src=tracks[i].src;a.play().catch(function(){});
+}
+window.playTrack=playTrack;
+
+var content={
+  music:{title:'music',body:buildMusicBody},
+  store:{title:'store',body:'<div class="si"><h3>sample packs</h3><p>original sounds, textures, and kits.<br>delivered instantly via gumroad.</p><button class="bb" onclick="window.open(\'https://flahmusic.gumroad.com/\',\'_blank\')">browse the store →</button></div><hr class="divider"><span style="font-size:9px;color:#9070d0;letter-spacing:0.14em">more packs dropping soon</span>'},
+  blog:{title:'blog',body:'thoughts and process<hr class="divider"><div style="margin:10px 0"><div style="font-size:8px;color:#a888e0;letter-spacing:0.18em;margin-bottom:4px">coming soon</div><div style="color:#fff;font-size:11px">first post dropping soon</div></div>'},
+  contact:{title:'contact',body:'get in touch<hr class="divider"><a href="mailto:flahobino@gmail.com">→ flahobino@gmail.com</a><a href="https://www.instagram.com/flahmusic/" target="_blank">→ instagram dm</a><a href="https://www.facebook.com/profile.php?id=61583931599745" target="_blank">→ facebook</a>'}
+};
+function openPanel(id){
+  var p=content[id];if(!p)return;
+  document.getElementById('ptitle').textContent=p.title;
+  document.getElementById('pbody').innerHTML=(typeof p.body==='function')?p.body():p.body;
+  document.getElementById('panel').style.display='block';panelOpen=true;
+}
+function closePanel(){
+  document.getElementById('panel').style.display='none';panelOpen=false;
+  if(started&&!IS_TOUCH)cv.requestPointerLock();
+}
+window.openPanel=openPanel;window.closePanel=closePanel;
+
+// debounced resize (avoids thrashing on mobile address-bar show/hide)
+var _rt;
+window.addEventListener('resize',function(){
+  clearTimeout(_rt);
+  _rt=setTimeout(function(){
+    camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();
+    renderer.setPixelRatio(Math.min(devicePixelRatio, IS_TOUCH?1.5:2));
+    renderer.setSize(innerWidth,innerHeight);
+  },120);
+});
+
+// ── ANIMATE ──
+var clock=new THREE.Clock();var camDir=new THREE.Vector3(),fwdH=new THREE.Vector3(),rgt=new THREE.Vector3(),dir=new THREE.Vector3(),UPV=new THREE.Vector3(0,1,0),_np=new THREE.Vector3();
+function animate(){
+  requestAnimationFrame(animate);
+  // skip all GPU work while the tab/app is backgrounded — saves battery + heat
+  if(document.hidden){clock.getDelta();return;}
+  var t=clock.elapsedTime;
+
+  if(started&&!panelOpen){
+    camera.getWorldDirection(camDir);
+    fwdH.set(camDir.x,0,camDir.z).normalize();
+    rgt.crossVectors(fwdH,UPV).normalize();
+    dir.set(0,0,0);
+    // keyboard
+    var kf=(keys['KeyW']||keys['ArrowUp']?1:0)-(keys['KeyS']||keys['ArrowDown']?1:0);
+    var ks=(keys['KeyD']||keys['ArrowRight']?1:0)-(keys['KeyA']||keys['ArrowLeft']?1:0);
+    if(kf!==0||ks!==0){ // desktop: fly where you look (pitch incl)
+      dir.addScaledVector(camDir,kf);dir.addScaledVector(rgt,ks);
+    }else if(moveX||moveZ){ // touch: planar move
+      dir.addScaledVector(fwdH,-moveZ);dir.addScaledVector(rgt,moveX);
+    }
+    var up=(keys['Space']?1:0)-((keys['ShiftLeft']||keys['ShiftRight'])?1:0)+flyUp;
+    dir.y+=up;
+    if(dir.length()>0)dir.normalize();
+    vel.addScaledVector(dir,SPEED);vel.multiplyScalar(DAMP);
+    var np=_np.copy(camera.position).addScaledVector(vel,1);
+    resolveCollision(np);
+    np.y=Math.max(-2.5,Math.min(16,np.y));
+    np.x=Math.max(-28,Math.min(28,np.x));
+    np.z=Math.max(-29,Math.min(14,np.z));
+    camera.position.copy(np);
+    if((iaFrame++%4)===0)checkIA();
+  }
+
+  for(var i=0;i<slimeList.length;i++){
+    var sl=slimeList[i],fo=sl.userData.floatOffset;
+    sl.position.y=sl.userData.baseY+Math.sin(t+fo)*0.13;
+    sl.rotation.y=Math.sin(t*0.5+fo)*0.2;
+    // bump reaction: ^_^ + flat-top grin when player is close
+    var dx=camera.position.x-sl.userData.sx,dz=camera.position.z-sl.userData.sz;
+    var react=(dx*dx+dz*dz)<sl.userData.r2;
+    var ud=sl.userData;
+    if(react!==ud._react){
+      ud._react=react;
+      ud.smile.visible=!react;ud.grin.visible=react;ud.tongue.visible=react;
+      for(var e=0;e<ud.roundEyes.length;e++)ud.roundEyes[e].visible=!react;
+      for(var h=0;h<ud.happyEyes.length;h++)ud.happyEyes[h].visible=react;
+      sl.scale.setScalar(react?1.12:1);
+    }
+  }
+  // media orbit close + just above the stand
+  for(var m=0;m<mediaList.length;m++){
+    var md=mediaList[m],a=md.userData.ang+t*0.35;
+    md.position.set(Math.cos(a)*2.0, 1.4+Math.sin(t*0.8+md.userData.idx)*0.28, Math.sin(a)*2.0);
+    if(md.userData.spin){md.userData.spin.rotation.y+=0.05;} // CD: in-plane spin, tilt stays
+    else{md.rotation.y+=0.02;md.rotation.x=Math.sin(t*0.5+md.userData.idx)*0.2;}
+  }
+  for(var n=0;n<ns.children.length;n++){var ch=ns.children[n];if(ch.userData.newsRing)ch.rotation.z+=ch.userData.ringIdx===0?0.008:-0.006;}
+  // glass dome shimmer + rainbow cascade
+  domeGlass.rotation.y=t*0.04;
+  for(var cz=0;cz<caustics.length;cz++){
+    caustics[cz].material.opacity=caustics[cz].userData.op+Math.sin(t*0.9+caustics[cz].userData.ph)*0.05;
+  }
+  for(var o2=0;o2<orbList.length;o2++){var ob=orbList[o2];ob.position.y=ob.userData.baseY+Math.sin(t*0.55+ob.userData.floatOffset)*0.25;}
+
+  // billboards face camera (signs over command/news/music)
+  for(var b=0;b<billboards.length;b++){
+    billboards[b].getWorldPosition(_wp);
+    billboards[b].lookAt(camera.position.x,_wp.y,camera.position.z);
+  }
+
+  renderer.render(scene,camera);
+}
+animate();
+</script>
+</body>
+</html>
