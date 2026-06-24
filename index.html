@@ -882,27 +882,25 @@ function animate(){
     if((iaFrame++%4)===0)checkIA();
   }
 
-  // ── audio levels: bass → bounce, mids → laugh (gentle idle float when quiet) ──
-  var bass=0,mid=0;
-  if(analyser){
-    analyser.getByteFrequencyData(freqData);
-    var bsum=0;for(var fb=1;fb<8;fb++)bsum+=freqData[fb];bass=bsum/7/255;
-    var msum=0;for(var fm=10;fm<46;fm++)msum+=freqData[fm];mid=msum/36/255;
-    bassS=bassS*0.6+bass*0.4; midS=midS*0.5+mid*0.5;
-  }else{bassS*=0.9;midS*=0.9;}
+  // ── each slime listens to its OWN slice of the spectrum → individual notes drive each one ──
+  var haveAudio=false;
+  if(analyser){analyser.getByteFrequencyData(freqData);haveAudio=true;}
   for(var i=0;i<slimeList.length;i++){
     var sl=slimeList[i],fo=sl.userData.floatOffset,ud=sl.userData;
-    var dx=camera.position.x-ud.sx,dz=camera.position.z-ud.sz;
-    var happy=((dx*dx+dz*dz)<ud.r2)||(midS>0.38);   // smile/laugh when player's near OR melody hits
-    sl.position.y=ud.baseY+Math.sin(t+fo)*0.13+bassS*0.9;   // idle float + beat bounce
-    sl.rotation.y=Math.sin(t*0.5+fo)*0.2;
-    sl.scale.setScalar((happy?1.12:1)*(1+bassS*0.1));
-    if(happy!==ud._happy){
-      ud._happy=happy;
-      ud.smile.visible=!happy;ud.grin.visible=happy;ud.tongue.visible=happy;
-      for(var e=0;e<ud.roundEyes.length;e++)ud.roundEyes[e].visible=!happy;
-      for(var h=0;h<ud.happyEyes.length;h++)ud.happyEyes[h].visible=happy;
+    var lo=2+i*4,e=0;                                       // low slimes = bass/beat, higher = melody/treble
+    if(haveAudio){for(var fb=lo;fb<lo+5;fb++)e+=freqData[fb];e=Math.min(1,(e/5/255)*(1+i*0.3));}  // boost upper bands (treble runs quieter)
+    ud.eS=(ud.eS||0)*0.82+e*0.18;                            // smoothed band energy (kills the jitter)
+    var near=((camera.position.x-ud.sx)*(camera.position.x-ud.sx)+(camera.position.z-ud.sz)*(camera.position.z-ud.sz))<ud.r2;
+    var want=near||ud.eS>(ud._happy?0.26:0.42);             // hysteresis: holds the smile until energy really drops
+    if(want!==ud._happy&&(t-(ud._lf||0))>0.3){              // min hold time so faces can't flicker
+      ud._happy=want;ud._lf=t;
+      ud.smile.visible=!want;ud.grin.visible=want;ud.tongue.visible=want;
+      for(var ee=0;ee<ud.roundEyes.length;ee++)ud.roundEyes[ee].visible=!want;
+      for(var h=0;h<ud.happyEyes.length;h++)ud.happyEyes[h].visible=want;
     }
+    sl.position.y=ud.baseY+Math.sin(t*1.1+fo)*0.1+ud.eS*0.95;   // own idle float + own note bounce
+    sl.rotation.y=Math.sin(t*0.5+fo)*0.2;
+    sl.scale.setScalar((ud._happy?1.1:1)*(1+ud.eS*0.12));
   }
   // media orbit close + just above the stand
   for(var m=0;m<mediaList.length;m++){
