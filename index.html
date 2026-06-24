@@ -12,6 +12,10 @@
 body{background:#cfe8d8;overflow:hidden;font-family:'Baloo 2','Trebuchet MS',sans-serif;color:#1d3a2a;touch-action:none;}
 #c{display:block;width:100vw;height:100vh;cursor:crosshair;}
 #hud{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;}
+#vig{position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at center, rgba(0,0,0,0) 52%, rgba(18,8,38,0.5) 100%);}
+#fade{position:fixed;inset:0;background:#0c0a1a;z-index:50;pointer-events:none;opacity:1;transition:opacity 1.3s ease;}
+#fade.gone{opacity:0;}
+body.spooky #c{filter:invert(1) hue-rotate(180deg) contrast(1.12) saturate(1.15);}
 #logo{position:absolute;top:20px;left:50%;transform:translateX(-50%);text-align:center;}
 #logo h1{font-size:20px;letter-spacing:0.32em;color:#ffc6a0;text-transform:lowercase;font-weight:800;text-shadow:0 1px 4px rgba(40,30,60,0.6);}
 #logo p{font-size:10px;letter-spacing:0.18em;color:#ffd6b0;margin-top:3px;font-weight:600;text-shadow:0 1px 4px rgba(40,30,60,0.6);}
@@ -69,7 +73,9 @@ body.touch .sl{pointer-events:all;padding:3px 0;}
 <body>
 <audio id="bgAudio" src="Dearly Flahloved 135bpm Eb.mp3" loop preload="auto"></audio>
 <canvas id="c"></canvas>
+<div id="fade"></div>
 <div id="hud">
+  <div id="vig"></div>
   <div id="logo"><h1>flah</h1><p>music · samples · blog</p></div>
   <div id="socials">
     <a class="sl" href="https://www.youtube.com/@flah_music" target="_blank">youtube</a>
@@ -114,28 +120,30 @@ if(IS_TOUCH)document.body.classList.add('touch');
 // browsers block UNMUTED autoplay until the user interacts with the page,
 // so we try immediately, and if that's refused we start on the very first
 // tap / click / key (which includes hitting "enter").
+var analyser=null,freqData=null,bassS=0,midS=0,audioCtx=null;
 (function(){
   var bg=document.getElementById('bgAudio');
   if(!bg)return;
   bg.volume=0.6;
-  var kicked=false;
-  function go(){
-    if(kicked)return;
-    var pr=bg.play();
-    if(pr&&pr.then){pr.then(function(){kicked=true;clean();}).catch(function(){});}
-    else{kicked=true;clean();}
+  var unlocked=false;
+  function unlock(){
+    if(unlocked)return;unlocked=true;
+    // build the analyser graph ON the gesture (so the context is resumable, not stuck suspended)
+    try{
+      audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+      var src=audioCtx.createMediaElementSource(bg);
+      analyser=audioCtx.createAnalyser();analyser.fftSize=256;analyser.smoothingTimeConstant=0.78;
+      freqData=new Uint8Array(analyser.frequencyBinCount);
+      src.connect(analyser);analyser.connect(audioCtx.destination);
+    }catch(e){analyser=null;}
+    if(audioCtx&&audioCtx.state==='suspended')audioCtx.resume();
+    bg.play().catch(function(){});
+    ['pointerdown','touchstart','keydown','click'].forEach(function(ev){window.removeEventListener(ev,unlock);});
   }
-  function clean(){
-    ['pointerdown','touchstart','keydown','click'].forEach(function(ev){
-      window.removeEventListener(ev,go);
-    });
-  }
-  // attempt right away (works if the browser allows it)
-  go();
-  // fallback: first user gesture unlocks audio
-  ['pointerdown','touchstart','keydown','click'].forEach(function(ev){
-    window.addEventListener(ev,go,{passive:true});
-  });
+  // plain autoplay attempt (no web-audio graph yet, so it can never get stuck silent)
+  bg.play().catch(function(){});
+  // first real gesture wires up the analyser, resumes the context, and (re)plays
+  ['pointerdown','touchstart','keydown','click'].forEach(function(ev){window.addEventListener(ev,unlock,{passive:true});});
 })();
 
 // ── SCENE ──
@@ -178,10 +186,24 @@ function mkPlane(w,h,rx,ry,x,y,z,col){
   mesh.rotation.set(rx,ry,0);mesh.position.set(x,y,z);scene.add(mesh);
 }
 mkPlane(80,80,-Math.PI/2,0,0,-3.2,0,0x3c4049);     // floor
-mkPlane(80,24,0,0,0,9,-30,0x4a4e58);               // back
-mkPlane(80,24,0,Math.PI,0,9,16,0x4a4e58);          // front
-mkPlane(80,24,0,Math.PI/2,30,9,0,0x454952);        // right
-mkPlane(80,24,0,-Math.PI/2,-30,9,0,0x454952);      // left
+// walls each carry a feathered cut-out viewport (filled by the DEEP-SPACE VIEWPORTS section)
+function holeTex(col,u){
+  var c=document.createElement('canvas');c.width=1024;c.height=308;var x=c.getContext('2d');
+  x.fillStyle=col;x.fillRect(0,0,1024,308);
+  x.globalCompositeOperation='destination-out';x.shadowColor='#000';x.shadowBlur=42;x.fillStyle='#000';
+  var hw=1024*0.32,hh=308*0.48,hx=u*1024,hy=0.73*308,r=64;
+  x.beginPath();x.moveTo(hx-hw/2+r,hy-hh/2);x.arcTo(hx+hw/2,hy-hh/2,hx+hw/2,hy+hh/2,r);x.arcTo(hx+hw/2,hy+hh/2,hx-hw/2,hy+hh/2,r);x.arcTo(hx-hw/2,hy+hh/2,hx-hw/2,hy-hh/2,r);x.arcTo(hx-hw/2,hy-hh/2,hx+hw/2,hy-hh/2,r);x.closePath();x.fill();
+  x.globalCompositeOperation='source-over';return new THREE.CanvasTexture(c);
+}
+function makeWall(x,y,z,ry,col,u){
+  var hex='#'+('000000'+col.toString(16)).slice(-6);
+  var m=new THREE.Mesh(new THREE.PlaneGeometry(80,24),new THREE.MeshStandardMaterial({color:col,roughness:0.85,metalness:0.05,map:holeTex(hex,u),alphaTest:0.5,side:THREE.DoubleSide}));
+  m.position.set(x,y,z);m.rotation.y=ry;scene.add(m);
+}
+makeWall(0,9,-30,0,0x4a4e58,0.5);            // back
+makeWall(0,9,16,Math.PI,0x4a4e58,0.5);       // front
+makeWall(30,9,0,Math.PI/2,0x454952,0.5875);  // right
+makeWall(-30,9,0,-Math.PI/2,0x454952,0.4125);// left
 
 // ── GLASS DOME + SKY + RAINBOW PRISM CASCADE ──
 // ceiling frames a big circular opening; the glass dome caps it overhead
@@ -389,6 +411,20 @@ var storeSign=makeSign('store',2.6,0.85,'#f4fbf2','#1d6a44');
 storeSign.position.set(0,3.95,1.15);storeSign.userData.billboard=false;storeSign.rotation.x=-0.18;shop.add(storeSign);
 addCollider(11,-11,3.4,2);
 
+// ── STORE INTERIOR — shelves stocked with cassettes, CDs & vinyl ──
+(function(){
+  var shelfMat=mat(0xd8f0e4,1,0.9,0);
+  function plank(y){var p=new THREE.Mesh(new THREE.BoxGeometry(3.0,0.07,0.5),shelfMat);p.position.set(0,y,-0.42);shop.add(p);}
+  plank(1.5);plank(2.12);plank(2.74);
+  var cols=[0xff8aa0,0xffd36a,0x8ad0ff,0xb59cff,0x8ae0b0,0xffa86a];
+  // cassettes (standing in a row) — bottom shelf
+  for(var i=0;i<8;i++){var cs=new THREE.Mesh(new THREE.BoxGeometry(0.13,0.3,0.46),mat(cols[i%6],1,0.5,0.1));cs.position.set(-1.25+i*0.36,1.7,-0.4);shop.add(cs);}
+  // CD jewel cases (standing) — middle shelf
+  for(var j=0;j<9;j++){var cd=new THREE.Mesh(new THREE.BoxGeometry(0.05,0.33,0.33),new THREE.MeshStandardMaterial({color:cols[(j+2)%6],roughness:0.2,metalness:0.5,emissive:new THREE.Color(cols[(j+2)%6]),emissiveIntensity:0.08}));cd.position.set(-1.3+j*0.325,2.32,-0.4);shop.add(cd);}
+  // vinyl records (leaning) — top shelf
+  for(var k=0;k<4;k++){var v=new THREE.Group();var disc=new THREE.Mesh(CYL,mat(0x24222a,1,0.5,0.2));disc.scale.set(0.29,0.02,0.29);disc.rotation.x=Math.PI/2;v.add(disc);var lab=new THREE.Mesh(CYL,mat(cols[k%6],1,0.4,0));lab.scale.set(0.1,0.025,0.1);lab.rotation.x=Math.PI/2;lab.position.z=0.012;v.add(lab);v.position.set(-1.0+k*0.66,3.04,-0.34);v.rotation.x=-0.16;shop.add(v);}
+})();
+
 // ── FLOATING MEDIA — wide own-space orbit ABOVE the stand ──
 var mediaList=[];
 var mediaPivot=new THREE.Group();mediaPivot.position.set(15,0,-9);scene.add(mediaPivot);
@@ -463,6 +499,14 @@ for(var kk=0;kk<5;kk++){
 // MUSIC sign — highest of all
 var musicSign=makeSign('music',3.2,0.95,'#f4fbf2','#0e7a52');
 musicSign.position.set(0,5.2,0);musicSign.userData.billboard=true;sg.add(musicSign);
+
+// ── SONG-FLIP BUTTON — physical silver pedestal + big red dome (between music & contact) ──
+var rbtn=makeGrp('song',0,-3.2,-19,0,1.6,1.6);
+var rbMetal=new THREE.MeshStandardMaterial({color:0xc6cad2,roughness:0.3,metalness:0.85});
+var rbBase=new THREE.Mesh(new THREE.CylinderGeometry(0.75,0.9,0.55,22),rbMetal);rbBase.position.y=0.27;rbtn.add(rbBase);
+var rbCol=new THREE.Mesh(new THREE.CylinderGeometry(0.6,0.66,0.5,22),rbMetal);rbCol.position.y=0.62;rbtn.add(rbCol);
+var rbRim=new THREE.Mesh(new THREE.CylinderGeometry(0.62,0.62,0.12,22),new THREE.MeshStandardMaterial({color:0xa8acb4,roughness:0.3,metalness:0.9}));rbRim.position.y=0.86;rbtn.add(rbRim);
+var rbDome=new THREE.Mesh(new THREE.SphereGeometry(0.52,22,14,0,Math.PI*2,0,Math.PI*0.5),new THREE.MeshStandardMaterial({color:0xe21a1a,roughness:0.35,metalness:0.1,emissive:new THREE.Color(0x6a0000),emissiveIntensity:0.3}));rbDome.position.y=0.9;rbtn.add(rbDome);
 
 // ── SLIMES (Dragon Quest style, lighter mesh count) ──
 var slimeList=[];
@@ -553,10 +597,10 @@ var rainbows=[];
     m.position.set(x,y,z);m.rotation.y=ry;m.userData.baseOp=op;m.userData.ph=Math.random()*6.28;
     rainbows.push(m);scene.add(m);return m;
   }
-  arc(0,-3,-29,0,48,0.5);            // back wall arch
-  arc(0,-3,15.5,Math.PI,48,0.5);     // front wall arch
-  arc(-29,-3,-7,Math.PI/2,48,0.45);   // left wall arch (centered on room)
-  arc(29,-3,-7,-Math.PI/2,48,0.45);   // right wall arch (centered on room)
+  arc(0,-3,-29,0,48,0.6);             // back wall arch
+  arc(0,-3,15.5,Math.PI,48,0.6);      // front wall arch
+  arc(-29,-3,-7,Math.PI/2,48,0.56);   // left wall arch (centered on room)
+  arc(29,-3,-7,-Math.PI/2,48,0.56);   // right wall arch (centered on room)
 })();
 
 // ── TWINKLING SPARKLES (soft star points twinkling in the room) ──
@@ -581,36 +625,40 @@ var sparkles=[];
   }
 })();
 
-// ── SPACE WINDOWS (stars + planets beneath each rainbow, all 4 walls) ──
-var spaceTex=(function(){
-  var c=document.createElement('canvas');c.width=512;c.height=320;var x=c.getContext('2d');
-  var bg=x.createLinearGradient(0,0,0,320);
-  bg.addColorStop(0,'#0a0a2a');bg.addColorStop(0.6,'#140a30');bg.addColorStop(1,'#05030f');
-  x.fillStyle=bg;x.fillRect(0,0,512,320);
-  function neb(cx,cy,r,col){var ng=x.createRadialGradient(cx,cy,0,cx,cy,r);ng.addColorStop(0,col);ng.addColorStop(1,'rgba(0,0,0,0)');x.fillStyle=ng;x.fillRect(0,0,512,320);}
-  neb(140,110,150,'rgba(120,80,200,0.28)');
-  neb(380,210,170,'rgba(60,150,210,0.22)');
-  for(var i=0;i<280;i++){var sx=Math.random()*512,sy=Math.random()*320,r=Math.random()*1.3+0.2;x.fillStyle='rgba(255,255,255,'+(0.4+Math.random()*0.6)+')';x.beginPath();x.arc(sx,sy,r,0,Math.PI*2);x.fill();}
-  function planet(cx,cy,r,c1,c2,ring){
-    var pg=x.createRadialGradient(cx-r*0.3,cy-r*0.3,r*0.1,cx,cy,r);
-    pg.addColorStop(0,c1);pg.addColorStop(1,c2);
-    x.fillStyle=pg;x.beginPath();x.arc(cx,cy,r,0,Math.PI*2);x.fill();
-    if(ring){x.save();x.translate(cx,cy);x.rotate(-0.4);x.scale(1,0.32);x.strokeStyle='rgba(220,200,255,0.55)';x.lineWidth=5;x.beginPath();x.arc(0,0,r*1.8,0,Math.PI*2);x.stroke();x.restore();}
+// ── DEEP-SPACE VIEWPORTS — unique 3D planets drifting FAR out beyond each wall's cut-out ──
+var planetList=[];
+(function(){
+  function starTex(nebs){
+    var c=document.createElement('canvas');c.width=1024;c.height=768;var x=c.getContext('2d');
+    x.fillStyle='#04030d';x.fillRect(0,0,1024,768);
+    nebs.forEach(function(n){var g=x.createRadialGradient(n[0],n[1],0,n[0],n[1],n[2]);g.addColorStop(0,n[3]);g.addColorStop(1,'rgba(0,0,0,0)');x.fillStyle=g;x.fillRect(0,0,1024,768);});
+    for(var i=0;i<900;i++){var sx=Math.random()*1024,sy=Math.random()*768,rr=Math.random()*1.1+0.15;x.fillStyle='rgba(255,255,255,'+(0.3+Math.random()*0.7)+')';x.beginPath();x.arc(sx,sy,rr,0,Math.PI*2);x.fill();}
+    return new THREE.CanvasTexture(c);
   }
-  planet(385,95,40,'#a8ead9','#2a7a8a',true);
-  planet(115,240,26,'#ffc8a0','#a8583a',false);
-  x.strokeStyle='rgba(180,190,210,0.35)';x.lineWidth=10;x.strokeRect(5,5,502,310);
-  return new THREE.CanvasTexture(c);
+  var haloTex=(function(){var c=document.createElement('canvas');c.width=128;c.height=128;var x=c.getContext('2d');var g=x.createRadialGradient(64,64,0,64,64,64);g.addColorStop(0,'rgba(255,255,255,1)');g.addColorStop(0.3,'rgba(255,255,255,0.45)');g.addColorStop(1,'rgba(255,255,255,0)');x.fillStyle=g;x.fillRect(0,0,128,128);return new THREE.CanvasTexture(c);})();
+  function planet(cx,cy,cz,r,col,emi,ring,glow){
+    var g=new THREE.Group();g.position.set(cx,cy,cz);
+    var b=new THREE.Mesh(new THREE.SphereGeometry(1,24,18),new THREE.MeshStandardMaterial({color:col,roughness:0.9,metalness:0,emissive:col,emissiveIntensity:emi?0.7:0.32,fog:false}));
+    b.scale.setScalar(r);g.add(b);
+    if(ring){var rg=new THREE.Mesh(new THREE.RingGeometry(r*1.4,r*2.2,48),new THREE.MeshBasicMaterial({color:ring,transparent:true,opacity:0.55,side:THREE.DoubleSide,fog:false}));rg.rotation.x=1.15;rg.rotation.y=0.35;g.add(rg);}
+    if(glow){var sp=new THREE.Sprite(new THREE.SpriteMaterial({map:haloTex,color:glow,transparent:true,opacity:emi?0.85:0.4,blending:THREE.AdditiveBlending,depthWrite:false,fog:false}));var hs=r*(emi?7:3.6);sp.scale.set(hs,hs,1);g.add(sp);}
+    scene.add(g);
+    planetList.push({g:g,by:cy,ph:Math.random()*6.28,spin:0.0012+Math.random()*0.0026});
+  }
+  function backdrop(cx,cy,cz,ry,nebs){var m=new THREE.Mesh(new THREE.PlaneGeometry(190,128),new THREE.MeshBasicMaterial({map:starTex(nebs),side:THREE.DoubleSide,fog:false}));m.position.set(cx,cy,cz);m.rotation.y=ry;scene.add(m);}
+  // back — teal ringed giant, orange moon, distant blue world
+  backdrop(0,4,-82,0,[[300,260,360,'rgba(150,70,210,0.55)'],[760,520,420,'rgba(50,130,210,0.45)']]);
+  planet(-7,8,-58,4.2,0x35b0c8,0,0x9fe6ff,0x8fe0ff); planet(9,2,-50,2.0,0xe8763a,0,0,0); planet(2,-3,-54,1.2,0x6a86ff,0,0,0);
+  // front — amber gas giant, blue moon
+  backdrop(0,4,50,0,[[360,300,380,'rgba(210,120,80,0.5)'],[700,520,400,'rgba(80,110,220,0.45)']]);
+  planet(6,8,42,4.6,0xe8a838,0,0,0xffcf80); planet(-8,1,38,1.7,0x6a9aff,0,0,0);
+  // left — green world, blazing sun
+  backdrop(-82,4,-7,Math.PI/2,[[320,300,380,'rgba(220,80,150,0.5)'],[720,500,420,'rgba(80,200,180,0.4)']]);
+  planet(-56,8,-12,3.4,0x4fc070,0,0,0); planet(-50,3,-1,1.1,0xfff0b0,0xfff0b0,0,0xfff0c0);
+  // right — sandy moon, violet ringed planet
+  backdrop(82,4,-7,Math.PI/2,[[320,320,380,'rgba(80,200,210,0.45)'],[720,500,420,'rgba(170,120,235,0.5)']]);
+  planet(54,8,-2,2.0,0xcf9a66,0,0,0); planet(64,-1,-16,3.8,0x9a5ee0,0,0xe2c8ff,0xc89aff);
 })();
-var spaceWindows=[];
-function addWindow(wx,wy,wz,ry,w,h){
-  var m=new THREE.Mesh(new THREE.PlaneGeometry(w,h),new THREE.MeshBasicMaterial({map:spaceTex,fog:false}));
-  m.position.set(wx,wy,wz);m.rotation.y=ry;spaceWindows.push(m);scene.add(m);return m;
-}
-addWindow(0,2.5,-29.6,0,30,13);             // back
-addWindow(0,2.5,15.6,Math.PI,30,13);        // front
-addWindow(-29.6,2.5,-7,Math.PI/2,30,13);    // left
-addWindow(29.6,2.5,-7,-Math.PI/2,30,13);    // right
 
 // precompute interactable meshes for raycast (once)
 var iaMeshes=[];
@@ -630,7 +678,7 @@ var moveX=0,moveZ=0,flyUp=0; // analog inputs (touch + keys merge)
 
 document.addEventListener('keydown',function(e){
   keys[e.code]=true;
-  if(e.code==='KeyE'&&nearObj&&started&&!panelOpen){openPanel(nearObj);if(!IS_TOUCH)document.exitPointerLock();}
+  if(e.code==='KeyE'&&nearObj&&started&&!panelOpen){if(nearObj==='song'){toggleSpooky();}else{openPanel(nearObj);if(!IS_TOUCH)document.exitPointerLock();}}
   if(e.code==='Escape'&&panelOpen){closePanel();}
 });
 document.addEventListener('keyup',function(e){keys[e.code]=false;});
@@ -705,27 +753,31 @@ if(IS_TOUCH){
   down.addEventListener('touchend',function(){flyUp=0;},{passive:true});
 
   var tib=document.getElementById('tinteract');
-  tib.addEventListener('touchstart',function(e){e.preventDefault();if(nearObj&&!panelOpen)openPanel(nearObj);},{passive:false});
-  tib.addEventListener('click',function(){if(nearObj&&!panelOpen)openPanel(nearObj);});
+  function tapInteract(){if(!nearObj||panelOpen)return;if(nearObj==='song')toggleSpooky();else openPanel(nearObj);}
+  tib.addEventListener('touchstart',function(e){e.preventDefault();tapInteract();},{passive:false});
+  tib.addEventListener('click',function(){tapInteract();});
 }
 
 // ── INTERACTION (throttled) ──
 var ray=new THREE.Raycaster();var nearObj=null;var iaFrame=0;
 var ihint=document.getElementById('ihint');var tint=document.getElementById('tinteract');
 function checkIA(){
+  if(IS_TOUCH){
+    // proximity-based on touch — just be NEAR a station, no aiming needed
+    var best=null,bd=81; // within 9 units (squared)
+    for(var i=0;i<ias.length;i++){var gg=ias[i];var dx=camera.position.x-gg.position.x,dz=camera.position.z-gg.position.z;var d=dx*dx+dz*dz;if(d<bd){bd=d;best=gg;}}
+    nearObj=best?best.userData.label:null;
+    if(nearObj){tint.textContent=(nearObj==='song'?'press the button':'open '+nearObj);tint.style.display='block';}else{tint.style.display='none';}
+    return;
+  }
   ray.setFromCamera({x:0,y:0},camera);
   var hits=ray.intersectObjects(iaMeshes,false);
   if(hits.length&&hits[0].distance<6){
     var o=hits[0].object;while(o.parent&&!o.userData.ia&&o.parent!==scene)o=o.parent;
     nearObj=o.userData.label||null;
   }else{nearObj=null;}
-  if(IS_TOUCH){
-    if(nearObj){tint.textContent='open '+nearObj;tint.style.display='block';}
-    else{tint.style.display='none';}
-  }else{
-    ihint.style.opacity=nearObj?'1':'0';
-    if(nearObj)ihint.textContent='[ e ] '+nearObj;
-  }
+  ihint.style.opacity=nearObj?'1':'0';
+  if(nearObj)ihint.textContent=(nearObj==='song'?'[ e ] flip the song':'[ e ] '+nearObj);
 }
 
 // ── flah tracks: drop audio files next to this html (e.g. a "tracks" folder)
@@ -774,6 +826,17 @@ function closePanel(){
 }
 window.openPanel=openPanel;window.closePanel=closePanel;
 
+// ── BIG RED BUTTON: flip the soundtrack + invert the whole world (spooky mode) ──
+var spooky=false;
+function toggleSpooky(){
+  spooky=!spooky;
+  document.body.classList.toggle('spooky',spooky);
+  if(typeof sparkles!=='undefined')for(var s=0;s<sparkles.length;s++)sparkles[s].visible=!spooky; // hide twinkle specks in inverted mode
+  var bg=document.getElementById('bgAudio');
+  if(bg){bg.src=spooky?'CRAWLING UP THE LAP OF GOD.mp3':'Dearly Flahloved 135bpm Eb.mp3';bg.play().catch(function(){});}
+}
+window.toggleSpooky=toggleSpooky;
+
 // debounced resize (avoids thrashing on mobile address-bar show/hide)
 var _rt;
 window.addEventListener('resize',function(){
@@ -819,20 +882,26 @@ function animate(){
     if((iaFrame++%4)===0)checkIA();
   }
 
+  // ── audio levels: bass → bounce, mids → laugh (gentle idle float when quiet) ──
+  var bass=0,mid=0;
+  if(analyser){
+    analyser.getByteFrequencyData(freqData);
+    var bsum=0;for(var fb=1;fb<8;fb++)bsum+=freqData[fb];bass=bsum/7/255;
+    var msum=0;for(var fm=10;fm<46;fm++)msum+=freqData[fm];mid=msum/36/255;
+    bassS=bassS*0.6+bass*0.4; midS=midS*0.5+mid*0.5;
+  }else{bassS*=0.9;midS*=0.9;}
   for(var i=0;i<slimeList.length;i++){
-    var sl=slimeList[i],fo=sl.userData.floatOffset;
-    sl.position.y=sl.userData.baseY+Math.sin(t+fo)*0.13;
+    var sl=slimeList[i],fo=sl.userData.floatOffset,ud=sl.userData;
+    var dx=camera.position.x-ud.sx,dz=camera.position.z-ud.sz;
+    var happy=((dx*dx+dz*dz)<ud.r2)||(midS>0.38);   // smile/laugh when player's near OR melody hits
+    sl.position.y=ud.baseY+Math.sin(t+fo)*0.13+bassS*0.9;   // idle float + beat bounce
     sl.rotation.y=Math.sin(t*0.5+fo)*0.2;
-    // bump reaction: ^_^ + flat-top grin when player is close
-    var dx=camera.position.x-sl.userData.sx,dz=camera.position.z-sl.userData.sz;
-    var react=(dx*dx+dz*dz)<sl.userData.r2;
-    var ud=sl.userData;
-    if(react!==ud._react){
-      ud._react=react;
-      ud.smile.visible=!react;ud.grin.visible=react;ud.tongue.visible=react;
-      for(var e=0;e<ud.roundEyes.length;e++)ud.roundEyes[e].visible=!react;
-      for(var h=0;h<ud.happyEyes.length;h++)ud.happyEyes[h].visible=react;
-      sl.scale.setScalar(react?1.12:1);
+    sl.scale.setScalar((happy?1.12:1)*(1+bassS*0.1));
+    if(happy!==ud._happy){
+      ud._happy=happy;
+      ud.smile.visible=!happy;ud.grin.visible=happy;ud.tongue.visible=happy;
+      for(var e=0;e<ud.roundEyes.length;e++)ud.roundEyes[e].visible=!happy;
+      for(var h=0;h<ud.happyEyes.length;h++)ud.happyEyes[h].visible=happy;
     }
   }
   // media orbit close + just above the stand
@@ -866,6 +935,11 @@ function animate(){
     sparkles[sp].material.opacity=0.5+Math.sin(t*1.6+sparkles[sp].userData.ph)*0.45; // twinkle
     sparkles[sp].rotation.y=t*0.02*(sp+1);
   }
+  for(var pz=0;pz<planetList.length;pz++){
+    var P=planetList[pz];
+    P.g.rotation.y+=P.spin;                                  // slow spin ( rings precess)
+    P.g.position.y=P.by+Math.sin(t*0.18+P.ph)*0.5;           // gentle drift
+  }
 
   // billboards face camera (signs over command/news/music)
   for(var b=0;b<billboards.length;b++){
@@ -876,6 +950,8 @@ function animate(){
   renderer.render(scene,camera);
 }
 animate();
+// smooth fade-in from dark on load
+setTimeout(function(){var f=document.getElementById('fade');if(f)f.classList.add('gone');},150);
 </script>
 </body>
 </html>
