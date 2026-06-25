@@ -539,22 +539,16 @@ function makeSlime(x,y,z,scale,colIdx,floatOff){
   // rounded slime body (revolved teardrop, welded smooth — no seam)
   var body=new THREE.Mesh(SLIME_GEO,mat(c.body,1,0.34,0.04,c.body,0.07));
   body.scale.set(BS,BS,BS);g.add(body);
-  // ── EYES: round (idle) + happy ^_^ (reaction) ──
-  var roundEyes=[],happyEyes=[];
+  // ── ROUND EYES (always on — no ^_^ swap, so they never stack) ──
   [-0.14,0.14].forEach(function(ex){
-    var ew=new THREE.Mesh(SPH,mat(0xffffff,1,0.14,0));ew.scale.set(0.095*BS,0.125*BS,0.07*BS);ew.position.set(ex*BS,0.08*BS,0.46*BS);g.add(ew);roundEyes.push(ew);
-    var pu=new THREE.Mesh(SPH,mat(c.eye,1,0.8,0));pu.scale.set(0.046*BS,0.055*BS,0.046*BS);pu.position.set(ex*BS,0.075*BS,0.53*BS);g.add(pu);roundEyes.push(pu);
-    // happy ^ arc (hidden until reaction)
-    var he=new THREE.Mesh(new THREE.TorusGeometry(0.062*BS,0.016*BS,5,12,Math.PI),mat(c.eye,1,0.7,0));
-    he.position.set(ex*BS,0.07*BS,0.5*BS);he.visible=false;g.add(he);happyEyes.push(he);
+    var ew=new THREE.Mesh(SPH,mat(0xffffff,1,0.16,0));ew.scale.set(0.095*BS,0.125*BS,0.07*BS);ew.position.set(ex*BS,0.07*BS,0.5*BS);g.add(ew);
+    var pu=new THREE.Mesh(SPH,mat(c.eye,1,0.8,0));pu.scale.set(0.047*BS,0.056*BS,0.047*BS);pu.position.set(ex*BS,0.065*BS,0.56*BS);g.add(pu);
   });
-  // ── IDLE SMILE: clean maroon ∪, set well below the eyes ──
-  var smile=new THREE.Mesh(new THREE.TorusGeometry(0.13*BS,0.022*BS,8,20,Math.PI),mat(0x5a1422,1,0.6,0));
-  smile.rotation.z=Math.PI;smile.position.set(0,-0.13*BS,0.48*BS);g.add(smile);
-  // ── REACTION GRIN: open happy mouth (hidden until proximity) ──
-  var grin=new THREE.Mesh(new THREE.CircleGeometry(0.13*BS,20,Math.PI,Math.PI),mat(0x5a1422,1,0.6,0));
-  grin.position.set(0,-0.1*BS,0.49*BS);grin.visible=false;g.add(grin);
-  g.userData.roundEyes=roundEyes;g.userData.happyEyes=happyEyes;
+  // ── MOUTH: idle ∪ smile  ↔  open-mouth smile on reaction (pushed proud of the rounder body) ──
+  var smile=new THREE.Mesh(new THREE.TorusGeometry(0.1*BS,0.02*BS,8,20,Math.PI),mat(0x5a1422,1,0.6,0));
+  smile.rotation.z=Math.PI;smile.position.set(0,-0.045*BS,0.6*BS);g.add(smile);
+  var grin=new THREE.Mesh(new THREE.CircleGeometry(0.125*BS,22,Math.PI,Math.PI),new THREE.MeshStandardMaterial({color:0x5a1422,roughness:0.6,side:THREE.DoubleSide}));
+  grin.position.set(0,-0.03*BS,0.6*BS);grin.visible=false;g.add(grin);
   g.userData.smile=smile;g.userData.grin=grin;
   g.userData.sx=x;g.userData.sz=z;
   var rr=0.55*scale+0.9;g.userData.r2=rr*rr;
@@ -923,22 +917,16 @@ function animate(){
     ud.ePk=Math.max(ud.eS,(ud.ePk||0.2)*0.997);              // slow-decaying peak → auto-gain (quiet songs still move them)
     var lvl=Math.min(1,ud.eS/(ud.ePk*0.7+0.06));             // normalized 0..1, so every song hits the full range
     var near=((camera.position.x-ud.sx)*(camera.position.x-ud.sx)+(camera.position.z-ud.sz)*(camera.position.z-ud.sz))<ud.r2;
-    var aw=lvl>(ud._aw?0.45:0.62);                            // audio reaction: hysteresis + hold (smooth, no flicker)
+    var aw=lvl>(ud._aw?0.45:0.62);                            // reaction level: hysteresis + hold (smooth, no flicker)
     if(aw!==ud._aw&&(t-(ud._lf||0))>0.28){ud._aw=aw;ud._lf=t;}
-    var eyesHappy=near||ud._aw;                               // ^_^ eyes on a melodic note OR when you're close
-    var mouthOpen=near;                                       // open grin only on proximity (audio keeps the calm smile)
-    if(eyesHappy!==ud._eh){
-      ud._eh=eyesHappy;
-      for(var ee=0;ee<ud.roundEyes.length;ee++)ud.roundEyes[ee].visible=!eyesHappy;
-      for(var h=0;h<ud.happyEyes.length;h++)ud.happyEyes[h].visible=eyesHappy;
-    }
-    if(mouthOpen!==ud._mo){
-      ud._mo=mouthOpen;
-      ud.smile.visible=!mouthOpen;ud.grin.visible=mouthOpen;
+    var open=near||ud._aw;                                    // open-mouth smile on a melodic note OR up close (eyes stay round)
+    if(open!==ud._mo){
+      ud._mo=open;
+      ud.smile.visible=!open;ud.grin.visible=open;
     }
     sl.position.y=ud.baseY+Math.sin(t*1.1+fo)*0.1+lvl*0.5+animate.gp*0.55;   // idle float + own-band accent + shared rhythm pulse
     sl.rotation.y=Math.sin(t*0.5+fo)*0.2;
-    sl.scale.setScalar((eyesHappy?1.08:1)*(1+lvl*0.12));
+    sl.scale.setScalar((open?1.08:1)*(1+lvl*0.12));
   }
   // media orbit close + just above the stand
   for(var m=0;m<mediaList.length;m++){
