@@ -539,23 +539,21 @@ function makeSlime(x,y,z,scale,colIdx,floatOff){
   // rounded slime body (revolved teardrop, welded smooth — no seam)
   var body=new THREE.Mesh(SLIME_GEO,mat(c.body,1,0.34,0.04,c.body,0.07));
   body.scale.set(BS,BS,BS);g.add(body);
-  // ── EYES: round (idle) + happy ^_^ (activated) — smaller & nestled ──
-  var roundEyes=[],happyEyes=[];
+  // ── ROUND EYES (always on — open eyes in every state) ──
   [-0.13,0.13].forEach(function(ex){
-    var ew=new THREE.Mesh(SPH,mat(0xffffff,1,0.18,0));ew.scale.set(0.075*BS,0.094*BS,0.05*BS);ew.position.set(ex*BS,0.075*BS,0.5*BS);g.add(ew);roundEyes.push(ew);
-    var pu=new THREE.Mesh(SPH,mat(c.eye,1,0.8,0));pu.scale.set(0.038*BS,0.045*BS,0.038*BS);pu.position.set(ex*BS,0.07*BS,0.55*BS);g.add(pu);roundEyes.push(pu);
-    var he=new THREE.Mesh(new THREE.TorusGeometry(0.058*BS,0.016*BS,6,14,Math.PI),mat(c.eye,1,0.7,0));  // ^_^ arch
-    he.position.set(ex*BS,0.075*BS,0.52*BS);he.visible=false;g.add(he);happyEyes.push(he);
+    var ew=new THREE.Mesh(SPH,mat(0xffffff,1,0.2,0));ew.scale.set(0.075*BS,0.094*BS,0.05*BS);ew.position.set(ex*BS,0.085*BS,0.5*BS);g.add(ew);
+    var pu=new THREE.Mesh(SPH,mat(c.eye,1,0.8,0));pu.scale.set(0.038*BS,0.045*BS,0.038*BS);pu.position.set(ex*BS,0.08*BS,0.55*BS);g.add(pu);
   });
-  // ── MOUTH: idle ∪ smile  ↔  :D open grin (activated) ──
-  var smile=new THREE.Mesh(new THREE.TorusGeometry(0.095*BS,0.018*BS,8,20,Math.PI),mat(0x5a1422,1,0.6,0));
-  smile.rotation.z=Math.PI;smile.position.set(0,-0.05*BS,0.6*BS);g.add(smile);
-  var grin=new THREE.Mesh(new THREE.CircleGeometry(0.1*BS,22,Math.PI,Math.PI),new THREE.MeshStandardMaterial({color:0x5a1422,roughness:0.6,side:THREE.DoubleSide}));
-  grin.scale.set(1.25,0.82,1);grin.position.set(0,-0.035*BS,0.6*BS);grin.visible=false;g.add(grin);
-  g.userData.roundEyes=roundEyes;g.userData.happyEyes=happyEyes;
+  // ── MOUTH: idle ∪ smile  ↔  :D open grin (smile-topped open mouth, like the reference) ──
+  var smile=new THREE.Mesh(new THREE.TorusGeometry(0.095*BS,0.018*BS,8,20,Math.PI),mat(0x6a1422,1,0.6,0));
+  smile.rotation.z=Math.PI;smile.position.set(0,-0.055*BS,0.6*BS);g.add(smile);
+  var mw=0.125*BS,mh=0.12*BS,mt=0.02*BS,msh=new THREE.Shape();
+  msh.moveTo(-mw,mt);msh.quadraticCurveTo(0,-0.045*BS,mw,mt);msh.quadraticCurveTo(0,-mh,-mw,mt);
+  var grin=new THREE.Mesh(new THREE.ShapeGeometry(msh,16),new THREE.MeshStandardMaterial({color:0x6a1422,roughness:0.6,side:THREE.DoubleSide}));
+  grin.position.set(0,-0.02*BS,0.6*BS);grin.visible=false;g.add(grin);
   g.userData.smile=smile;g.userData.grin=grin;
   g.userData.sx=x;g.userData.sz=z;
-  var rr=0.55*scale+0.9;g.userData.r2=rr*rr;
+  var rr=0.55*scale+1.4;g.userData.r2=rr*rr;   // generous so walking up to a slime reliably triggers it
   g.userData.floatOffset=floatOff||0;g.userData.baseY=y;
   addCollider(x,z,0.55*scale,0.55*scale);
   slimeList.push(g);return g;
@@ -917,20 +915,18 @@ function animate(){
     var sl=slimeList[i],fo=sl.userData.floatOffset,ud=sl.userData;
     var lo=2+i*4,e=0;                                        // each slime listens to its own frequency band
     if(haveAudio){for(var fb=lo;fb<lo+5;fb++)e+=freqData[fb];e=Math.min(1,(e/5/255)*(1+i*0.28));}
-    ud.eAvg=(ud.eAvg||0)*0.9+e*0.1;                          // slow baseline
+    ud.eAvg=(ud.eAvg||0)*0.92+e*0.08;                       // slow baseline
     ud.eS=(ud.eS||0)*0.6+e*0.4;                              // lightly smoothed (drives the bounce)
-    if(e-ud.eAvg>0.1&&e>0.16)ud._until=t+0.2;               // a beat / melodic "pick" → flash for 0.2s
+    if(e-ud.eAvg>0.2&&e>0.34)ud._until=t+0.16;             // only a STRONG beat/note pick → brief :D flash (not stuck open)
     var near=((camera.position.x-ud.sx)*(camera.position.x-ud.sx)+(camera.position.z-ud.sz)*(camera.position.z-ud.sz))<ud.r2;
-    var act=near||(t<(ud._until||0));                        // ACTIVATED = up close (held) OR a musical hit (transient → reverts)
+    var act=near||(t<(ud._until||0));                        // ACTIVATED = up close (held) OR a strong musical hit (transient)
     if(act!==ud._act){
       ud._act=act;
-      for(var re=0;re<ud.roundEyes.length;re++)ud.roundEyes[re].visible=!act;   // round ↔ ^_^
-      for(var hp=0;hp<ud.happyEyes.length;hp++)ud.happyEyes[hp].visible=act;
-      ud.smile.visible=!act;ud.grin.visible=act;                                // ∪ ↔ :D
+      ud.smile.visible=!act;ud.grin.visible=act;             // ∪ ↔ :D  (eyes stay round the whole time)
     }
     sl.position.y=ud.baseY+Math.sin(t*1.1+fo)*0.1+(haveAudio?(ud.eS*0.55+animate.gp*0.35):0);  // idle float + beat bounce (music only)
     sl.rotation.y=Math.sin(t*0.5+fo)*0.2;
-    sl.scale.setScalar((act?1.07:1)*(1+ud.eS*0.1));
+    sl.scale.setScalar((act?1.06:1)*(1+ud.eS*0.1));
   }
   // media orbit close + just above the stand
   for(var m=0;m<mediaList.length;m++){
