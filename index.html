@@ -72,6 +72,8 @@ body.touch .sl{pointer-events:all;padding:3px 0;}
 </head>
 <body>
 <audio id="bgAudio" src="Dearly Flahloved 135bpm Eb.mp3" loop preload="auto"></audio>
+<!-- hidden static form so Netlify Forms detects + captures newsletter signups -->
+<form name="newsletter" netlify netlify-honeypot="bot-field" hidden><input type="email" name="email"><input name="bot-field"></form>
 <canvas id="c"></canvas>
 <div id="fade"></div>
 <div id="hud">
@@ -120,29 +122,38 @@ if(IS_TOUCH)document.body.classList.add('touch');
 // browsers block UNMUTED autoplay until the user interacts with the page,
 // so we try immediately, and if that's refused we start on the very first
 // tap / click / key (which includes hitting "enter").
-var analyser=null,freqData=null,bassS=0,midS=0,audioCtx=null;
+var analyser=null,freqData=null,audioCtx=null;
 (function(){
   var bg=document.getElementById('bgAudio');
   if(!bg)return;
   bg.volume=0.6;
   var unlocked=false;
-  function unlock(){
-    if(unlocked)return;unlocked=true;
-    // build the analyser graph ON the gesture (so the context is resumable, not stuck suspended)
+  function attachAnalyser(){
+    // ONLY tap the audio once the context is truly running — never reroute sound into a dead/suspended context
+    if(analyser||!audioCtx||audioCtx.state!=='running')return;
     try{
-      audioCtx=new (window.AudioContext||window.webkitAudioContext)();
       var src=audioCtx.createMediaElementSource(bg);
       analyser=audioCtx.createAnalyser();analyser.fftSize=256;analyser.smoothingTimeConstant=0.78;
       freqData=new Uint8Array(analyser.frequencyBinCount);
       src.connect(analyser);analyser.connect(audioCtx.destination);
     }catch(e){analyser=null;}
-    if(audioCtx&&audioCtx.state==='suspended')audioCtx.resume();
+  }
+  function unlock(){
+    if(unlocked)return;unlocked=true;
+    // 1) GUARANTEE sound: the plain element plays straight to the speakers (no web-audio dependency)
     bg.play().catch(function(){});
+    // 2) OPTIONAL reactivity: spin up a context, but only tap the audio if it actually reaches 'running'
+    try{
+      audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+      var pr=audioCtx.resume?audioCtx.resume():null;
+      if(pr&&pr.then){pr.then(attachAnalyser);}else{attachAnalyser();}
+      setTimeout(attachAnalyser,400);
+    }catch(e){audioCtx=null;}
     ['pointerdown','touchstart','keydown','click'].forEach(function(ev){window.removeEventListener(ev,unlock);});
   }
-  // plain autoplay attempt (no web-audio graph yet, so it can never get stuck silent)
+  // plain autoplay attempt at load (pure element, no web-audio at all)
   bg.play().catch(function(){});
-  // first real gesture wires up the analyser, resumes the context, and (re)plays
+  // first real gesture guarantees playback, then tries (safely) to wire up the analyser
   ['pointerdown','touchstart','keydown','click'].forEach(function(ev){window.addEventListener(ev,unlock,{passive:true});});
 })();
 
@@ -153,15 +164,15 @@ camera.position.set(0,1.4,8);
 var renderer=new THREE.WebGLRenderer({canvas:document.getElementById('c'),antialias:!IS_TOUCH,powerPreference:'high-performance'});
 renderer.setSize(innerWidth,innerHeight);
 renderer.setPixelRatio(Math.min(devicePixelRatio, IS_TOUCH?1.5:2));
-renderer.setClearColor(0x2a2d34,1);
-// filmic tone mapping rolls off highlights so lit pastel faces never clip to pure white
+renderer.setClearColor(0x101119,1);
+// filmic tone mapping + darker base → the coloured lights do the lifting (moody, sci-fi / PSO-ish)
 renderer.toneMapping=THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure=1.06;
-scene.fog=new THREE.FogExp2(0x3a3e48,0.016);
+renderer.toneMappingExposure=1.0;
+scene.fog=new THREE.FogExp2(0x12141c,0.018);
 
 // ── LIGHTING — soft base + room-wide animated rainbow (driven in render loop) ──
-var amb=new THREE.AmbientLight(0x9aa0b4,1.0);scene.add(amb);
-var sun=new THREE.DirectionalLight(0xffffff,0.75);sun.position.set(6,20,4);scene.add(sun);
+var amb=new THREE.AmbientLight(0x7d8aa8,0.5);scene.add(amb);
+var sun=new THREE.DirectionalLight(0xeef2ff,0.7);sun.position.set(6,20,4);scene.add(sun);
 // a ring of colored lights orbits the room, sweeping a moving spectrum over every surface
 var rainbowLights=[];
 (function(){
@@ -185,7 +196,7 @@ function mkPlane(w,h,rx,ry,x,y,z,col){
   mesh.material.side=THREE.DoubleSide;
   mesh.rotation.set(rx,ry,0);mesh.position.set(x,y,z);scene.add(mesh);
 }
-mkPlane(80,80,-Math.PI/2,0,0,-3.2,0,0x3c4049);     // floor
+mkPlane(80,80,-Math.PI/2,0,0,-3.2,0,0x1e2028);     // floor
 // walls each carry a feathered cut-out viewport (filled by the DEEP-SPACE VIEWPORTS section)
 function holeTex(col,u){
   var c=document.createElement('canvas');c.width=1024;c.height=308;var x=c.getContext('2d');
@@ -200,10 +211,10 @@ function makeWall(x,y,z,ry,col,u){
   var m=new THREE.Mesh(new THREE.PlaneGeometry(80,24),new THREE.MeshStandardMaterial({color:col,roughness:0.85,metalness:0.05,map:holeTex(hex,u),alphaTest:0.5,side:THREE.DoubleSide}));
   m.position.set(x,y,z);m.rotation.y=ry;scene.add(m);
 }
-makeWall(0,9,-30,0,0x4a4e58,0.5);            // back
-makeWall(0,9,16,Math.PI,0x4a4e58,0.5);       // front
-makeWall(30,9,0,Math.PI/2,0x454952,0.5875);  // right
-makeWall(-30,9,0,-Math.PI/2,0x454952,0.4125);// left
+makeWall(0,9,-30,0,0x2a2d36,0.5);            // back
+makeWall(0,9,16,Math.PI,0x2a2d36,0.5);       // front
+makeWall(30,9,0,Math.PI/2,0x262932,0.5875);  // right
+makeWall(-30,9,0,-Math.PI/2,0x262932,0.4125);// left
 
 // ── GLASS DOME + SKY + RAINBOW PRISM CASCADE ──
 // ceiling frames a big circular opening; the glass dome caps it overhead
@@ -326,6 +337,11 @@ function makeSign(text,w,h,bg,fg){
 // ── SHARED LOW-POLY GEO (reuse for performance) ──
 var SPH=new THREE.SphereGeometry(1,12,12);
 var CYL=new THREE.CylinderGeometry(1,1,1,10);
+// rounded Dragon-Quest slime body (revolved teardrop profile, centered on origin)
+var SLIME_GEO=(function(){
+  var pts=[[0,0],[0.32,0],[0.52,0.06],[0.60,0.18],[0.58,0.32],[0.52,0.46],[0.43,0.60],[0.31,0.73],[0.18,0.85],[0.07,0.94],[0,1.0]].map(function(p){return new THREE.Vector2(p[0],p[1]);});
+  var gg=new THREE.LatheGeometry(pts,20);gg.translate(0,-0.5,0);gg.computeVertexNormals();return gg;
+})();
 
 // ── TREES ──
 function makeTree(x,z,height,trunkCol,leafCol,scl){
@@ -519,27 +535,27 @@ function makeSlime(x,y,z,scale,colIdx,floatOff){
   scale=scale||1;
   var c=slimePalette[colIdx%slimePalette.length];
   var g=new THREE.Group();g.position.set(x,y,z);scene.add(g);
-  var body=new THREE.Mesh(SPH,mat(c.body,1,0.3,0.05,c.body,0.06));
-  body.scale.set(0.42*scale,0.34*scale,0.42*scale);body.position.y=0.05*scale;g.add(body);
-  var curl=new THREE.Mesh(SPH,mat(c.body,1,0.3,0,c.body,0.05));
-  curl.scale.set(0.09*scale,0.26*scale,0.09*scale);curl.position.set(0.05*scale,0.5*scale,0);curl.rotation.z=-0.3;g.add(curl);
-  // ── EYES: round (idle) + happy ^_^ (bump) ──
+  var BS=0.7*scale;
+  // rounded slime body (revolved teardrop)
+  var body=new THREE.Mesh(SLIME_GEO,mat(c.body,1,0.32,0.05,c.body,0.07));
+  body.scale.set(BS,BS,BS);g.add(body);
+  // ── EYES: round (idle) + happy ^_^ (reaction) ──
   var roundEyes=[],happyEyes=[];
-  [-0.15,0.15].forEach(function(ex){
-    var ew=new THREE.Mesh(SPH,mat(0xffffff,1,0.1,0));ew.scale.set(0.085*scale,0.1*scale,0.06*scale);ew.position.set(ex*scale,0.16*scale,0.36*scale);g.add(ew);roundEyes.push(ew);
-    var pu=new THREE.Mesh(SPH,mat(c.eye,1,0.8,0));pu.scale.set(0.05*scale,0.05*scale,0.05*scale);pu.position.set(ex*scale,0.16*scale,0.41*scale);g.add(pu);roundEyes.push(pu);
-    // happy ^ arc (hidden until bump)
-    var he=new THREE.Mesh(new THREE.TorusGeometry(0.055*scale,0.014*scale,5,12,Math.PI),mat(c.eye,1,0.7,0));
-    he.position.set(ex*scale,0.15*scale,0.4*scale);he.visible=false;g.add(he);happyEyes.push(he);
+  [-0.135,0.135].forEach(function(ex){
+    var ew=new THREE.Mesh(SPH,mat(0xffffff,1,0.12,0));ew.scale.set(0.092*BS,0.12*BS,0.07*BS);ew.position.set(ex*BS,0.06*BS,0.47*BS);g.add(ew);roundEyes.push(ew);
+    var pu=new THREE.Mesh(SPH,mat(c.eye,1,0.8,0));pu.scale.set(0.046*BS,0.053*BS,0.046*BS);pu.position.set(ex*BS,0.055*BS,0.535*BS);g.add(pu);roundEyes.push(pu);
+    // happy ^ arc (hidden until reaction)
+    var he=new THREE.Mesh(new THREE.TorusGeometry(0.06*BS,0.016*BS,5,12,Math.PI),mat(c.eye,1,0.7,0));
+    he.position.set(ex*BS,0.05*BS,0.5*BS);he.visible=false;g.add(he);happyEyes.push(he);
   });
-  // ── IDLE SMILE: curved ∪ line ──
-  var smile=new THREE.Mesh(new THREE.TorusGeometry(0.11*scale,0.02*scale,6,14,Math.PI),mat(0x2a1418,1,0.6,0));
-  smile.rotation.z=Math.PI;smile.position.set(0,-0.01*scale,0.4*scale);g.add(smile);
-  // ── BUMP GRIN: flat-top half-disk + tongue (hidden until bump) ──
-  var grin=new THREE.Mesh(new THREE.CircleGeometry(0.13*scale,18,Math.PI,Math.PI),mat(0x2a1418,1,0.6,0));
-  grin.position.set(0,-0.02*scale,0.4*scale);grin.visible=false;g.add(grin);
+  // ── IDLE SMILE: red curved ∪ (Dragon-Quest style) ──
+  var smile=new THREE.Mesh(new THREE.TorusGeometry(0.16*BS,0.028*BS,7,18,Math.PI),mat(0x7a1818,1,0.6,0));
+  smile.rotation.z=Math.PI;smile.position.set(0,-0.04*BS,0.5*BS);g.add(smile);
+  // ── BUMP GRIN: open mouth + tongue (hidden until proximity) ──
+  var grin=new THREE.Mesh(new THREE.CircleGeometry(0.17*BS,18,Math.PI,Math.PI),mat(0x7a1818,1,0.6,0));
+  grin.position.set(0,-0.04*BS,0.52*BS);grin.visible=false;g.add(grin);
   var tongue=new THREE.Mesh(SPH,mat(0xff7a88,1,0.5,0));
-  tongue.scale.set(0.07*scale,0.04*scale,0.03*scale);tongue.position.set(0,-0.08*scale,0.41*scale);tongue.visible=false;g.add(tongue);
+  tongue.scale.set(0.08*BS,0.045*BS,0.03*BS);tongue.position.set(0,-0.11*BS,0.53*BS);tongue.visible=false;g.add(tongue);
   g.userData.roundEyes=roundEyes;g.userData.happyEyes=happyEyes;
   g.userData.smile=smile;g.userData.grin=grin;g.userData.tongue=tongue;
   g.userData.sx=x;g.userData.sz=z;
@@ -811,7 +827,7 @@ window.playTrack=playTrack;
 var content={
   music:{title:'music',body:buildMusicBody},
   store:{title:'store',body:'<div class="si"><h3>sample packs</h3><p>original sounds, textures, and kits.<br>delivered instantly via gumroad.</p><button class="bb" onclick="window.open(\'https://flahmusic.gumroad.com/\',\'_blank\')">browse the store →</button></div><hr class="divider"><span style="font-size:9px;color:#9070d0;letter-spacing:0.14em">more packs dropping soon</span>'},
-  blog:{title:'blog',body:'thoughts and process<hr class="divider"><div style="margin:10px 0"><div style="font-size:8px;color:#a888e0;letter-spacing:0.18em;margin-bottom:4px">coming soon</div><div style="color:#fff;font-size:11px">first post dropping soon</div></div>'},
+  blog:{title:'news + updates',body:'<div style="font-size:12px;color:#2e5a42;font-weight:700;margin-bottom:4px">get flah updates</div><div style="font-size:11px;color:#6a7c70;margin-bottom:10px">new drops from youtube, instagram &amp; bandcamp — straight to your inbox.</div><input id="nlEmail" type="email" placeholder="your email" autocomplete="email" style="width:100%;box-sizing:border-box;padding:9px 12px;border-radius:14px;border:2px solid rgba(95,191,134,0.5);background:rgba(255,255,255,0.92);font-family:inherit;font-size:13px;color:#1d4a32;outline:none"><button class="bb" style="width:100%;margin-top:8px" onclick="signupEmail()">sign me up →</button><div id="nlMsg" style="font-size:11px;margin-top:8px;min-height:14px;color:#9aa0b4"></div><hr class="divider"><div style="font-size:8px;color:#a888e0;letter-spacing:0.18em">thoughts &amp; process — first post soon</div>'},
   contact:{title:'contact',body:'get in touch<hr class="divider"><a href="mailto:flahobino@gmail.com">→ flahobino@gmail.com</a><a href="https://www.instagram.com/flahmusic/" target="_blank">→ instagram dm</a><a href="https://www.facebook.com/profile.php?id=61583931599745" target="_blank">→ facebook</a>'}
 };
 function openPanel(id){
@@ -836,6 +852,18 @@ function toggleSpooky(){
   if(bg){bg.src=spooky?'CRAWLING UP THE LAP OF GOD.mp3':'Dearly Flahloved 135bpm Eb.mp3';bg.play().catch(function(){});}
 }
 window.toggleSpooky=toggleSpooky;
+
+// ── NEWSLETTER SIGNUP → posts to Netlify Forms (captured in your Netlify dashboard) ──
+function signupEmail(){
+  var inp=document.getElementById('nlEmail'),msg=document.getElementById('nlMsg');
+  if(!inp)return;var email=(inp.value||'').trim();
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){if(msg){msg.style.color='#d06a6a';msg.textContent='enter a valid email';}return;}
+  if(msg){msg.style.color='#9aa0b4';msg.textContent='signing up…';}
+  fetch('/',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'form-name=newsletter&email='+encodeURIComponent(email)})
+    .then(function(){if(msg){msg.style.color='#1d8a5a';msg.textContent="you're in — thanks for joining ♡";}inp.value='';})
+    .catch(function(){if(msg){msg.style.color='#d06a6a';msg.textContent='hmm, try again in a sec';}});
+}
+window.signupEmail=signupEmail;
 
 // debounced resize (avoids thrashing on mobile address-bar show/hide)
 var _rt;
@@ -882,25 +910,37 @@ function animate(){
     if((iaFrame++%4)===0)checkIA();
   }
 
-  // ── each slime listens to its OWN slice of the spectrum → individual notes drive each one ──
-  var haveAudio=false;
-  if(analyser){analyser.getByteFrequencyData(freqData);haveAudio=true;}
+  // ── audio: per-slime bands (auto-gained so ANY song drives them) + a global level for the starlight ──
+  var haveAudio=false,gLvl=0;
+  if(analyser){
+    analyser.getByteFrequencyData(freqData);haveAudio=true;
+    var gs=0;for(var gb=2;gb<40;gb++)gs+=freqData[gb];gLvl=gs/38/255;
+  }
+  animate.gp=(animate.gp||0)*0.85+gLvl*0.15;                  // smoothed global level → drives the starlight pulse
   for(var i=0;i<slimeList.length;i++){
     var sl=slimeList[i],fo=sl.userData.floatOffset,ud=sl.userData;
-    var lo=2+i*4,e=0;                                       // low slimes = bass/beat, higher = melody/treble
-    if(haveAudio){for(var fb=lo;fb<lo+5;fb++)e+=freqData[fb];e=Math.min(1,(e/5/255)*(1+i*0.3));}  // boost upper bands (treble runs quieter)
-    ud.eS=(ud.eS||0)*0.82+e*0.18;                            // smoothed band energy (kills the jitter)
+    var lo=2+i*4,e=0;                                         // low slimes = bass/beat, higher = melody/treble
+    if(haveAudio){for(var fb=lo;fb<lo+5;fb++)e+=freqData[fb];e=e/5/255;}
+    ud.eS=(ud.eS||0)*0.8+e*0.2;                               // smoothed band energy
+    ud.ePk=Math.max(ud.eS,(ud.ePk||0.2)*0.997);              // slow-decaying peak → auto-gain (quiet songs still move them)
+    var lvl=Math.min(1,ud.eS/(ud.ePk*0.7+0.06));             // normalized 0..1, so every song hits the full range
     var near=((camera.position.x-ud.sx)*(camera.position.x-ud.sx)+(camera.position.z-ud.sz)*(camera.position.z-ud.sz))<ud.r2;
-    var want=near||ud.eS>(ud._happy?0.26:0.42);             // hysteresis: holds the smile until energy really drops
-    if(want!==ud._happy&&(t-(ud._lf||0))>0.3){              // min hold time so faces can't flicker
-      ud._happy=want;ud._lf=t;
-      ud.smile.visible=!want;ud.grin.visible=want;ud.tongue.visible=want;
-      for(var ee=0;ee<ud.roundEyes.length;ee++)ud.roundEyes[ee].visible=!want;
-      for(var h=0;h<ud.happyEyes.length;h++)ud.happyEyes[h].visible=want;
+    var aw=lvl>(ud._aw?0.45:0.62);                            // audio reaction: hysteresis + hold (smooth, no flicker)
+    if(aw!==ud._aw&&(t-(ud._lf||0))>0.28){ud._aw=aw;ud._lf=t;}
+    var eyesHappy=near||ud._aw;                               // ^_^ eyes on a melodic note OR when you're close
+    var mouthOpen=near;                                       // open grin only on proximity (audio keeps the calm smile)
+    if(eyesHappy!==ud._eh){
+      ud._eh=eyesHappy;
+      for(var ee=0;ee<ud.roundEyes.length;ee++)ud.roundEyes[ee].visible=!eyesHappy;
+      for(var h=0;h<ud.happyEyes.length;h++)ud.happyEyes[h].visible=eyesHappy;
     }
-    sl.position.y=ud.baseY+Math.sin(t*1.1+fo)*0.1+ud.eS*0.95;   // own idle float + own note bounce
+    if(mouthOpen!==ud._mo){
+      ud._mo=mouthOpen;
+      ud.smile.visible=!mouthOpen;ud.grin.visible=mouthOpen;ud.tongue.visible=mouthOpen;
+    }
+    sl.position.y=ud.baseY+Math.sin(t*1.1+fo)*0.1+lvl*0.5+animate.gp*0.55;   // idle float + own-band accent + shared rhythm pulse
     sl.rotation.y=Math.sin(t*0.5+fo)*0.2;
-    sl.scale.setScalar((ud._happy?1.1:1)*(1+ud.eS*0.12));
+    sl.scale.setScalar((eyesHappy?1.08:1)*(1+lvl*0.12));
   }
   // media orbit close + just above the stand
   for(var m=0;m<mediaList.length;m++){
@@ -918,7 +958,7 @@ function animate(){
   for(var o2=0;o2<orbList.length;o2++){var ob=orbList[o2];ob.position.y=ob.userData.baseY+Math.sin(t*0.55+ob.userData.floatOffset)*0.25;}
 
   // ── all-encompassing rainbow: ambient bathes the room + ring lights sweep + arches shimmer ──
-  amb.color.setHSL((t*0.03)%1,0.22,0.62);
+  amb.color.setHSL((t*0.03)%1,0.16,0.46);
   for(var rl=0;rl<rainbowLights.length;rl++){
     var rpl=rainbowLights[rl],ri=rpl.userData.idx,frac=ri/rainbowLights.length;
     rpl.color.setHSL((t*0.05+frac)%1,0.85,0.6);
@@ -930,7 +970,8 @@ function animate(){
     rbm.material.opacity=rbm.userData.baseOp+Math.sin(t*0.5+rbm.userData.ph)*0.07; // soft shimmer
   }
   for(var sp=0;sp<sparkles.length;sp++){
-    sparkles[sp].material.opacity=0.5+Math.sin(t*1.6+sparkles[sp].userData.ph)*0.45; // twinkle
+    var tw=0.42+Math.sin(t*1.6+sparkles[sp].userData.ph)*0.32;     // base twinkle
+    sparkles[sp].material.opacity=tw*(0.85+animate.gp*1.0);        // subtly pulse brighter with the music (no seizure)
     sparkles[sp].rotation.y=t*0.02*(sp+1);
   }
   for(var pz=0;pz<planetList.length;pz++){
