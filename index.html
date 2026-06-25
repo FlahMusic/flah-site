@@ -544,13 +544,19 @@ function makeSlime(x,y,z,scale,colIdx,floatOff){
     var ew=new THREE.Mesh(SPH,mat(0xffffff,1,0.2,0));ew.scale.set(0.075*BS,0.094*BS,0.05*BS);ew.position.set(ex*BS,0.085*BS,0.5*BS);g.add(ew);
     var pu=new THREE.Mesh(SPH,mat(c.eye,1,0.8,0));pu.scale.set(0.038*BS,0.045*BS,0.038*BS);pu.position.set(ex*BS,0.08*BS,0.55*BS);g.add(pu);
   });
-  // ── MOUTH: idle ∪ smile  ↔  :D open grin (smile-topped open mouth, like the reference) ──
+  // ── MOUTH: idle ∪ smile (personality varies per slime) ↔ :D OPEN mouth ──
+  var sw=0.82+Math.random()*0.5,sd=0.78+Math.random()*0.6;   // per-slime smile width/curve so they aren't identical
   var smile=new THREE.Mesh(new THREE.TorusGeometry(0.095*BS,0.018*BS,8,20,Math.PI),mat(0x6a1422,1,0.6,0));
-  smile.rotation.z=Math.PI;smile.position.set(0,-0.055*BS,0.6*BS);g.add(smile);
-  var mw=0.125*BS,mh=0.12*BS,mt=0.02*BS,msh=new THREE.Shape();
-  msh.moveTo(-mw,mt);msh.quadraticCurveTo(0,-0.045*BS,mw,mt);msh.quadraticCurveTo(0,-mh,-mw,mt);
-  var grin=new THREE.Mesh(new THREE.ShapeGeometry(msh,16),new THREE.MeshStandardMaterial({color:0x6a1422,roughness:0.6,side:THREE.DoubleSide}));
-  grin.position.set(0,-0.02*BS,0.6*BS);grin.visible=false;g.add(grin);
+  smile.rotation.z=Math.PI;smile.scale.set(sw,sd,1);smile.position.set(0,-0.055*BS,0.6*BS);g.add(smile);
+  // open grin: gentle smile-line top + DEEP rounded bowl bottom = unmistakably an open :D
+  var mw=0.145*BS,msh=new THREE.Shape();
+  msh.moveTo(-mw,0);msh.quadraticCurveTo(0,0.05*BS,mw,0);          // top edge curves slightly UP (smile line)
+  msh.quadraticCurveTo(0,-0.2*BS,-mw,0);                          // bottom edge plunges into a deep open bowl
+  var grin=new THREE.Mesh(new THREE.ShapeGeometry(msh,18),new THREE.MeshStandardMaterial({color:0x5a0f1d,roughness:0.6,side:THREE.DoubleSide}));
+  grin.position.set(0,0.005*BS,0.6*BS);grin.visible=false;
+  var tongue=new THREE.Mesh(SPH,mat(0xe0566e,1,0.5,0));            // tongue sells the "open" read
+  tongue.scale.set(0.082*BS,0.05*BS,0.03*BS);tongue.position.set(0,-0.12*BS,0.018*BS);grin.add(tongue);
+  g.add(grin);
   g.userData.smile=smile;g.userData.grin=grin;
   g.userData.sx=x;g.userData.sz=z;
   var rr=0.55*scale+2.0;g.userData.r2=rr*rr;   // generous so walking up to a slime reliably triggers it
