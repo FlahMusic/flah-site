@@ -943,19 +943,20 @@ function animate(){
     ud.eAvg=(ud.eAvg||0)*0.92+e*0.08;                       // slow baseline
     ud.ePk=Math.max(e,(ud.ePk||0)*0.995);                  // slow-decaying peak
     ud.eFloat=(ud.eFloat||0)+((e*0.55+animate.groove*0.45)-(ud.eFloat||0))*0.18;     // gentle continuous energy follow
-    ud.hop=(ud.hop||0)*0.9;                                                           // the last musical hop decays smoothly = floaty fall
+    ud.hop=(ud.hop||0)*0.92;                                                          // hop target decays slowly = floaty come-down
+    ud.bounce=(ud.bounce||0)+(ud.hop-(ud.bounce||0))*0.32;                            // ease the actual displacement → smooth jump AND smooth release
     var dyn=ud.ePk-ud.eAvg,thresh=ud.eAvg+dyn*0.6;          // adaptive threshold from this band's own range
     var rising=(e>thresh)&&((ud.ePrev||0)<=thresh);ud.ePrev=e;                       // rising edge = a NEW note attack
-    if(dyn>0.06&&rising&&t>(ud._refract||0)){ud._until=t+0.11;ud._refract=t+0.28;ud.hop=1;}   // onset → :D flash + a bounce impulse (the thing that makes them MOVE to the beat)
+    if(dyn>0.06&&rising&&t>(ud._refract||0)){ud._until=Math.max(ud._until||0,t+0.5);ud._refract=t+0.28;ud.hop=1;}   // onset → bounce impulse + hold the :D/^_^ face ≥0.5s (extends if activity continues → no flicker)
     var near=((camera.position.x-ud.sx)*(camera.position.x-ud.sx)+(camera.position.z-ud.sz)*(camera.position.z-ud.sz))<ud.r2;
     var act=near||(t<(ud._until||0));                        // ACTIVATED = walk up (OVERRIDES music, held) OR a melodic note (brief flash)
     if(act!==ud._act){ud._act=act;
       for(var re=0;re<ud.roundEyes.length;re++)ud.roundEyes[re].visible=!act;       // round open ↔ ^_^
       for(var hp=0;hp<ud.happyEyes.length;hp++)ud.happyEyes[hp].visible=act;
       ud.smile.visible=!act;ud.grin.visible=act;}                                    // ∪ ↔ :D
-    sl.position.y=ud.baseY+Math.sin(t*0.9+fo)*0.11+(haveAudio?(ud.hop*0.3+ud.eFloat*0.25):0);  // gentle hover + musical hop (floats down) + soft follow
+    sl.position.y=ud.baseY+Math.sin(t*0.9+fo)*0.11+(haveAudio?(ud.bounce*0.4+ud.eFloat*0.22):0);  // gentle hover + smoothed musical bounce + soft follow
     sl.rotation.y=Math.sin(t*0.5+fo)*0.2;
-    sl.scale.setScalar((act?1.07:1)*(1+(haveAudio?(ud.hop*0.1+ud.eFloat*0.05):0)));
+    sl.scale.setScalar((act?1.07:1)*(1+(haveAudio?(ud.bounce*0.12+ud.eFloat*0.05):0)));
   }
   // media orbit close + just above the stand
   for(var m=0;m<mediaList.length;m++){
