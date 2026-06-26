@@ -265,27 +265,37 @@ var halo=new THREE.Mesh(new THREE.TorusGeometry(12,0.2,8,64),
   new THREE.MeshBasicMaterial({color:0xc7d2e8,transparent:true,opacity:0.3,fog:false}));
 halo.rotation.x=Math.PI/2;halo.position.set(0,19,-7);scene.add(halo);
 
-// ── AURORA BOREALIS — additive light curtains drifting around the room, pulsing to the music ──
-var auroras=[];
+// ── AURORA BOREALIS — a living, wispy procedural veil that surrounds the room and FLOWS at the speed of the song ──
+var auroraMat=null,auroraMesh=null;
 (function(){
-  var cv=document.createElement('canvas');cv.width=64;cv.height=128;var g=cv.getContext('2d');
-  var grd=g.createLinearGradient(0,0,0,128);
-  grd.addColorStop(0,'rgba(255,255,255,0)');grd.addColorStop(0.4,'rgba(255,255,255,0.55)');
-  grd.addColorStop(0.72,'rgba(255,255,255,0.9)');grd.addColorStop(1,'rgba(255,255,255,0)');
-  g.fillStyle=grd;g.fillRect(0,0,64,128);
-  g.globalCompositeOperation='destination-out';
-  for(var s=0;s<20;s++){g.globalAlpha=Math.random()*0.6;g.fillRect(Math.random()*64,0,1+Math.random()*2.5,128);}
-  var atex=new THREE.CanvasTexture(cv);
-  var cols=[0x66ffb4,0x4be0d6,0x76ccff,0xb488ff,0xff8ad6,0x8effb0,0x6ad8ff];
-  var n=IS_TOUCH?5:7;
-  for(var i=0;i<n;i++){
-    var ang=i/n*Math.PI*2, rad=11+Math.random()*5, w=8+Math.random()*6, h=11+Math.random()*6;
-    var m=new THREE.Mesh(new THREE.PlaneGeometry(w,h),new THREE.MeshBasicMaterial({map:atex,color:cols[i%cols.length],transparent:true,opacity:0,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide,fog:false}));
-    m.position.set(Math.cos(ang)*rad,7+Math.random()*5,-7+Math.sin(ang)*rad);
-    m.rotation.y=-ang+Math.PI/2;
-    m.userData={ang:ang,rad:rad,baseY:m.position.y,band:2+i*4,ph:i*1.7,baseOp:0.26+Math.random()*0.12,sway:0.6+Math.random()*0.6};
-    auroras.push(m);scene.add(m);
-  }
+  var OCT=IS_TOUCH?3:4;   // fewer noise octaves on mobile for performance
+  auroraMat=new THREE.ShaderMaterial({
+    transparent:true,depthWrite:false,side:THREE.DoubleSide,blending:THREE.AdditiveBlending,fog:false,
+    uniforms:{uTime:{value:0},uIntensity:{value:0.9}},
+    vertexShader:'varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}',
+    fragmentShader:[
+      'precision highp float;',
+      'uniform float uTime;uniform float uIntensity;varying vec2 vUv;',
+      'float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}',
+      'float noise(vec2 p){vec2 i=floor(p),f=fract(p);float a=hash(i),b=hash(i+vec2(1.0,0.0)),c=hash(i+vec2(0.0,1.0)),d=hash(i+vec2(1.0,1.0));vec2 u=f*f*(3.0-2.0*f);return mix(mix(a,b,u.x),mix(c,d,u.x),u.y);}',
+      'float fbm(vec2 p){float v=0.0,a=0.5;for(int i=0;i<'+OCT+';i++){v+=a*noise(p);p*=2.0;a*=0.5;}return v;}',
+      'void main(){',
+      ' float x=vUv.x,y=vUv.y,flow=uTime;',
+      ' float n=fbm(vec2(x*7.0+flow*0.6,y*1.2+sin(x*8.0+flow*0.4)*0.4));',   // slow billowing veil
+      ' n+=0.5*fbm(vec2(x*15.0-flow*0.9,y*1.8));',                            // finer wisps streaming the other way
+      ' float curtain=smoothstep(0.5,1.0,n);',                               // carve wispy gaps (not a solid wall)
+      ' float vmask=smoothstep(0.02,0.34,y)*smoothstep(1.0,0.48,y);',        // hangs as a veil, soft top & bottom
+      ' float stri=0.62+0.38*sin(x*120.0+flow*2.0+n*6.0);',                  // travelling vertical striations
+      ' float alpha=curtain*vmask*stri*uIntensity;',
+      ' vec3 col=vec3(0.16,1.0,0.5);',                                       // dominant oxygen green
+      ' col=mix(col,vec3(0.2,0.45,1.0),smoothstep(0.5,0.14,y));',            // violet/blue along the bottom
+      ' col=mix(col,vec3(0.95,0.22,0.5),smoothstep(0.64,0.96,y));',          // crimson/magenta crowning the top
+      ' gl_FragColor=vec4(col*1.3,alpha);',
+      '}'
+    ].join('\n')
+  });
+  auroraMesh=new THREE.Mesh(new THREE.CylinderGeometry(15,15,24,96,1,true),auroraMat);
+  auroraMesh.position.set(0,7,-8);scene.add(auroraMesh);
 })();
 
 // ── dispersed rainbow ambient (no harsh central beam) ──
@@ -964,17 +974,13 @@ function animate(){
   animate.gp=(animate.gp||0)*0.85+gLvl*0.15;                  // smoothed global level → drives the starlight pulse
   // buoyant groove envelope: gentle lift, slow float-down → makes the bob floaty instead of jittery
   var gvP=animate.groove||0;animate.groove=gvP+(groove-gvP)*(groove>gvP?0.11:0.04);
-  // ── aurora wisps: drift around the room + pulse to the music (each tracks its own band) ──
-  for(var au=0;au<auroras.length;au++){
-    var aw=auroras[au],aud=aw.userData,ae=0;
-    if(haveAudio){for(var ab=aud.band;ab<aud.band+5;ab++)ae+=freqData[ab];ae=Math.min(1,ae/5/255*1.4);}
-    aud.lvl=(aud.lvl||0)*0.85+ae*0.15;
-    aw.material.opacity=aud.baseOp*(haveAudio?(0.45+aud.lvl*1.4+animate.gp*0.7):0.6);
-    var aa=aud.ang+Math.sin(t*0.16*aud.sway+aud.ph)*0.28;
-    aw.position.x=Math.cos(aa)*aud.rad;aw.position.z=-7+Math.sin(aa)*aud.rad;
-    aw.position.y=aud.baseY+Math.sin(t*0.38+aud.ph)*1.3;
-    aw.rotation.y=-aa+Math.PI/2;aw.rotation.z=Math.sin(t*0.28+aud.ph)*0.13;
-    aw.scale.y=1+Math.sin(t*0.5+aud.ph)*0.12+aud.lvl*0.35;
+  // ── aurora: flows CONTINUOUSLY, faster when the song is busier (speed tracks the music, brightness stays steady — no cheap pulsing) ──
+  if(auroraMat){
+    var adt=Math.min(0.05,t-(animate.apt||t));animate.apt=t;
+    var aspd=0.1+(haveAudio?(animate.gp*1.8+animate.groove*1.0):0.0);   // always-alive base drift + the song drives the flow speed
+    auroraMat.uniforms.uTime.value+=adt*aspd;
+    auroraMat.uniforms.uIntensity.value=0.9+(haveAudio?animate.gp*0.2:0.0);  // near-constant brightness
+    if(auroraMesh)auroraMesh.rotation.y+=adt*0.035;                          // whole veil slowly revolves around you
   }
   for(var i=0;i<slimeList.length;i++){
     var sl=slimeList[i],fo=sl.userData.floatOffset,ud=sl.userData;
