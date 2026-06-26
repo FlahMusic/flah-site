@@ -921,19 +921,29 @@ function animate(){
   }
 
   // ── audio: per-slime bands (auto-gained so ANY song drives them) + a global level for the starlight ──
-  var haveAudio=false,gLvl=0;
+  var haveAudio=false,gLvl=0,groove=0;
   if(analyser){
     analyser.getByteFrequencyData(freqData);haveAudio=true;
     var gs=0;for(var gb=2;gb<40;gb++)gs+=freqData[gb];gLvl=gs/38/255;
+    // predominant driver per track: low-end (rhythm) vs mids (melody) — ride whichever leads
+    var lowE=0,midE=0;
+    for(var lb=1;lb<7;lb++)lowE+=freqData[lb];lowE/=1530;        // 6 bins * 255
+    for(var mb=12;mb<48;mb++)midE+=freqData[mb];midE/=9180;      // 36 bins * 255
+    animate.lowAvg=(animate.lowAvg||0)*0.985+lowE*0.015;
+    animate.midAvg=(animate.midAvg||0)*0.985+midE*0.015;
+    groove=(animate.lowAvg>=animate.midAvg)?lowE:midE;           // follow the dominant element of this song
   }
   animate.gp=(animate.gp||0)*0.85+gLvl*0.15;                  // smoothed global level → drives the starlight pulse
+  // buoyant groove envelope: gentle lift, slow float-down → makes the bob floaty instead of jittery
+  var gvP=animate.groove||0;animate.groove=gvP+(groove-gvP)*(groove>gvP?0.11:0.04);
   for(var i=0;i<slimeList.length;i++){
     var sl=slimeList[i],fo=sl.userData.floatOffset,ud=sl.userData;
     var lo=2+i*4,e=0;                                        // each slime listens to its own frequency band
     if(haveAudio){for(var fb=lo;fb<lo+5;fb++)e+=freqData[fb];e=Math.min(1,(e/5/255)*(1+i*0.28));}
     ud.eAvg=(ud.eAvg||0)*0.92+e*0.08;                       // slow baseline
     ud.ePk=Math.max(e,(ud.ePk||0)*0.995);                  // slow-decaying peak
-    ud.eS=(ud.eS||0)*0.6+e*0.4;                              // drives the bounce
+    var lift=animate.groove*0.7+e*0.22;                                              // mostly the predominant groove + a touch of own band
+    ud.eFloat=(ud.eFloat||0)+(lift-(ud.eFloat||0))*(lift>(ud.eFloat||0)?0.1:0.05);   // buoyant: ease up, settle slower → floaty
     var dyn=ud.ePk-ud.eAvg,thresh=ud.eAvg+dyn*0.6;          // adaptive threshold from this band's own range
     var rising=(e>thresh)&&((ud.ePrev||0)<=thresh);ud.ePrev=e;                       // rising edge = a NEW note attack
     if(dyn>0.06&&rising&&t>(ud._refract||0)){ud._until=t+0.11;ud._refract=t+0.28;}   // brief :D flash + refractory → never pins on
@@ -943,9 +953,9 @@ function animate(){
       for(var re=0;re<ud.roundEyes.length;re++)ud.roundEyes[re].visible=!act;       // round open ↔ ^_^
       for(var hp=0;hp<ud.happyEyes.length;hp++)ud.happyEyes[hp].visible=act;
       ud.smile.visible=!act;ud.grin.visible=act;}                                    // ∪ ↔ :D
-    sl.position.y=ud.baseY+Math.sin(t*1.1+fo)*0.1+(haveAudio?(ud.eS*0.55+animate.gp*0.35):0);  // idle float + beat bounce (music only)
+    sl.position.y=ud.baseY+Math.sin(t*0.8+fo)*0.1+(haveAudio?ud.eFloat*0.95:0);   // slow idle hover + smooth buoyant lift on the groove
     sl.rotation.y=Math.sin(t*0.5+fo)*0.2;
-    sl.scale.setScalar((act?1.07:1)*(1+ud.eS*0.1));
+    sl.scale.setScalar((act?1.07:1)*(1+(haveAudio?ud.eFloat*0.1:0)));
   }
   // media orbit close + just above the stand
   for(var m=0;m<mediaList.length;m++){
