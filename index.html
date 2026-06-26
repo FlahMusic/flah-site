@@ -238,17 +238,17 @@ var DOME_CY=11.5, DOME_R=15, DOME_TH=1.05; // cap sits above the opening, apex ~
   var bg=bx.createLinearGradient(0,0,0,1024);bg.addColorStop(0,'#04030f');bg.addColorStop(0.6,'#080a1e');bg.addColorStop(1,'#0c1026');bx.fillStyle=bg;bx.fillRect(0,0,1024,1024);
   [['rgba(110,55,180,0.34)',320,360,460],['rgba(40,120,200,0.30)',760,600,500],['rgba(190,70,150,0.26)',640,260,400]].forEach(function(n){var rg=bx.createRadialGradient(n[1],n[2],0,n[1],n[2],n[3]);rg.addColorStop(0,n[0]);rg.addColorStop(1,'rgba(0,0,0,0)');bx.fillStyle=rg;bx.fillRect(0,0,1024,1024);});
   for(var i=0;i<520;i++){var sx=Math.random()*1024,sy=Math.random()*1024,rr=Math.random()*0.9+0.15;bx.fillStyle='rgba(255,255,255,'+(0.2+Math.random()*0.4)+')';bx.beginPath();bx.arc(sx,sy,rr,0,Math.PI*2);bx.fill();}
-  var back=new THREE.Mesh(new THREE.SphereGeometry(46,40,26,0,Math.PI*2,0,Math.PI*0.6),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(bc),side:THREE.BackSide,fog:false}));
-  back.position.set(CX,9,CZ);scene.add(back);
+  var back=new THREE.Mesh(new THREE.SphereGeometry(19,40,28),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(bc),side:THREE.BackSide,fog:false}));
+  back.position.set(CX,38,CZ);scene.add(back);   // a tight bubble HIGH in the chimney above the opening — never reaches the wall windows
   // hero stars as REAL 3D points scattered through the volume → parallax depth as you move/look
-  var pv=[];for(var p=0;p<340;p++){var aa=Math.random()*Math.PI*2,rd=2+Math.random()*30,hh=20+Math.random()*24;pv.push(CX+Math.cos(aa)*rd,hh,CZ+Math.sin(aa)*rd);}
+  var pv=[];for(var p=0;p<340;p++){var aa=Math.random()*Math.PI*2,rd=Math.random()*11,hh=18+Math.random()*28;pv.push(CX+Math.cos(aa)*rd,hh,CZ+Math.sin(aa)*rd);}
   var pg=new THREE.BufferGeometry();pg.setAttribute('position',new THREE.Float32BufferAttribute(pv,3));
   scene.add(new THREE.Points(pg,new THREE.PointsMaterial({map:dotTex,color:0xffffff,size:1.0,transparent:true,opacity:0.95,depthWrite:false,blending:THREE.AdditiveBlending})));
   // nebula clouds at varying depth/height (colour + parallax)
-  [[0x8a4cf0,-8,28,-16,26],[0x2f8fe0,12,38,2,30],[0xe05aa6,-14,44,-4,22],[0x39c8b8,9,46,-18,26],[0x6a86ff,4,33,8,20]].forEach(function(nb){var sp=new THREE.Sprite(new THREE.SpriteMaterial({map:cloudTex,color:nb[0],transparent:true,opacity:0.55,blending:THREE.AdditiveBlending,depthWrite:false,fog:false}));sp.position.set(CX+nb[1],nb[2],CZ+nb[3]);sp.scale.set(nb[4],nb[4],1);scene.add(sp);});
+  [[0x8a4cf0,-7,26,-5,18],[0x2f8fe0,7,34,3,20],[0xe05aa6,-8,42,-3,16],[0x39c8b8,6,46,-7,18],[0x6a86ff,3,30,6,14]].forEach(function(nb){var sp=new THREE.Sprite(new THREE.SpriteMaterial({map:cloudTex,color:nb[0],transparent:true,opacity:0.55,blending:THREE.AdditiveBlending,depthWrite:false,fog:false}));sp.position.set(CX+nb[1],nb[2],CZ+nb[3]);sp.scale.set(nb[4],nb[4],1);scene.add(sp);});
   // distant worlds for scale, way out
   function world(x,y,z,r,col,glow,ring){var gp=new THREE.Group();gp.position.set(CX+x,y,CZ+z);var b=new THREE.Mesh(new THREE.SphereGeometry(1,20,16),new THREE.MeshStandardMaterial({color:col,roughness:0.9,metalness:0,emissive:col,emissiveIntensity:0.32,fog:false}));b.scale.setScalar(r);gp.add(b);if(ring){var rg=new THREE.Mesh(new THREE.RingGeometry(r*1.4,r*2.2,40),new THREE.MeshBasicMaterial({color:ring,transparent:true,opacity:0.5,side:THREE.DoubleSide,fog:false}));rg.rotation.x=1.18;rg.rotation.y=0.3;gp.add(rg);}var sp=new THREE.Sprite(new THREE.SpriteMaterial({map:cloudTex,color:glow,transparent:true,opacity:0.5,blending:THREE.AdditiveBlending,depthWrite:false,fog:false}));sp.scale.set(r*6,r*6,1);gp.add(sp);scene.add(gp);}
-  world(-13,34,-5,2.6,0x6a86ff,0x9fb6ff,0xbcd0ff); world(15,42,-12,1.9,0xe0934a,0xffc890,0);
+  world(-8,30,-4,2.0,0x6a86ff,0x9fb6ff,0xbcd0ff); world(8,42,-6,1.5,0xe0934a,0xffc890,0);
 })();
 
 // glass paneled cap — iridescent rainbow vertex colors, additive shimmer
