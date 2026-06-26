@@ -557,8 +557,12 @@ function makeSlime(x,y,z,scale,colIdx,floatOff){
   msh.quadraticCurveTo(0,-0.2*BS,-mw,0);                          // bottom edge plunges into a deep open bowl
   var grin=new THREE.Mesh(new THREE.ShapeGeometry(msh,18),new THREE.MeshStandardMaterial({color:0x5a0f1d,roughness:0.6,side:THREE.DoubleSide}));
   grin.position.set(0,0.005*BS,0.6*BS);grin.visible=false;
-  var tongue=new THREE.Mesh(SPH,mat(0xe0566e,1,0.5,0));            // tongue sells the "open" read
-  tongue.scale.set(0.082*BS,0.05*BS,0.03*BS);tongue.position.set(0,-0.12*BS,0.018*BS);grin.add(tongue);
+  // tongue: a flat rounded mound that FILLS the bottom of the mouth, flush with the lower lip (coplanar — no floating ball)
+  var tw=0.1*BS,tsh=new THREE.Shape();
+  tsh.moveTo(-tw,-0.05*BS);tsh.quadraticCurveTo(0,0,tw,-0.05*BS);     // top of tongue: gentle dome
+  tsh.quadraticCurveTo(0,-0.185*BS,-tw,-0.05*BS);                    // bottom hugs the mouth's lower curve
+  var tongue=new THREE.Mesh(new THREE.ShapeGeometry(tsh,16),new THREE.MeshStandardMaterial({color:0xe06a80,roughness:0.5,side:THREE.DoubleSide}));
+  tongue.position.set(0,0,0.004*BS);grin.add(tongue);
   g.add(grin);
   g.userData.smile=smile;g.userData.grin=grin;
   g.userData.sx=x;g.userData.sz=z;
