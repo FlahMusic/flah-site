@@ -127,34 +127,37 @@ var analyser=null,freqData=null,audioCtx=null;
   var bg=document.getElementById('bgAudio');
   if(!bg)return;
   bg.volume=0.6;
-  var unlocked=false;
+  var poll=null,tries=0;
   function attachAnalyser(){
     // ONLY tap the audio once the context is truly running — never reroute sound into a dead/suspended context
-    if(analyser||!audioCtx||audioCtx.state!=='running')return;
+    if(analyser)return true;
+    if(!audioCtx)return false;
+    if(audioCtx.state!=='running'){if(audioCtx.resume)audioCtx.resume();return false;}
     try{
       var src=audioCtx.createMediaElementSource(bg);
       analyser=audioCtx.createAnalyser();analyser.fftSize=256;analyser.smoothingTimeConstant=0.78;
       freqData=new Uint8Array(analyser.frequencyBinCount);
       src.connect(analyser);analyser.connect(audioCtx.destination);
-    }catch(e){analyser=null;}
+      return true;
+    }catch(e){analyser=null;return false;}
   }
   function unlock(){
-    if(unlocked)return;unlocked=true;
     // 1) GUARANTEE sound: the plain element plays straight to the speakers (no web-audio dependency)
     bg.play().catch(function(){});
-    // 2) OPTIONAL reactivity: spin up a context, but only tap the audio if it actually reaches 'running'
+    // 2) reactivity: (re)create + resume the context — mobile often needs several gestures before it reaches 'running'
     try{
-      audioCtx=new (window.AudioContext||window.webkitAudioContext)();
-      var pr=audioCtx.resume?audioCtx.resume():null;
-      if(pr&&pr.then){pr.then(attachAnalyser);}else{attachAnalyser();}
-      setTimeout(attachAnalyser,400);
+      if(!audioCtx)audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+      if(audioCtx.resume)audioCtx.resume();
     }catch(e){audioCtx=null;}
-    ['pointerdown','touchstart','keydown','click'].forEach(function(ev){window.removeEventListener(ev,unlock);});
+    // keep polling until the analyser actually attaches (up to ~8s) instead of one best-effort try
+    if(!poll){poll=setInterval(function(){tries++;if(attachAnalyser()||tries>40){clearInterval(poll);poll=null;}},200);}
   }
   // plain autoplay attempt at load (pure element, no web-audio at all)
   bg.play().catch(function(){});
-  // first real gesture guarantees playback, then tries (safely) to wire up the analyser
-  ['pointerdown','touchstart','keydown','click'].forEach(function(ev){window.addEventListener(ev,unlock,{passive:true});});
+  // listen on EVERY gesture (not just the first) until reactivity is wired up
+  ['pointerdown','touchstart','touchend','keydown','click'].forEach(function(ev){window.addEventListener(ev,unlock,{passive:true});});
+  // if the context gets suspended (tab switch / interruption), wake it back up
+  document.addEventListener('visibilitychange',function(){if(!document.hidden&&audioCtx&&audioCtx.state!=='running'&&audioCtx.resume)audioCtx.resume();});
 })();
 
 // ── SCENE ──
