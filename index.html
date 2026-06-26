@@ -174,8 +174,9 @@ renderer.toneMappingExposure=1.0;
 scene.fog=new THREE.FogExp2(0x12141c,0.018);
 
 // ── LIGHTING — soft base + room-wide animated rainbow (driven in render loop) ──
-var amb=new THREE.AmbientLight(0x7d8aa8,0.5);scene.add(amb);
+var amb=new THREE.AmbientLight(0x7d8aa8,0.62);scene.add(amb);
 var sun=new THREE.DirectionalLight(0xeef2ff,0.7);sun.position.set(6,20,4);scene.add(sun);
+var skyLight=new THREE.PointLight(0xbcd0ff,0.55,70);skyLight.position.set(0,19,-7);scene.add(skyLight);  // soft skylight through the dome → room stays bright under the dark night sky
 // a ring of colored lights orbits the room, sweeping a moving spectrum over every surface
 var rainbowLights=[];
 (function(){
@@ -227,21 +228,25 @@ ceil.rotation.x=Math.PI/2;ceil.position.set(0,19,-7);scene.add(ceil);  // center
 
 var DOME_CY=11.5, DOME_R=15, DOME_TH=1.05; // cap sits above the opening, apex ~y26
 
-// sky behind the glass (gradient cap, seen from inside)
+// starry NIGHT sky behind the glass (seen from inside)
 (function(){
-  var cv2=document.createElement('canvas');cv2.width=128;cv2.height=128;
+  var cv2=document.createElement('canvas');cv2.width=256;cv2.height=256;
   var g=cv2.getContext('2d');
-  var grd=g.createLinearGradient(0,0,0,128);
-  grd.addColorStop(0,'#eaf2ff');grd.addColorStop(0.55,'#aeccf4');grd.addColorStop(1,'#cfe0f5');
-  g.fillStyle=grd;g.fillRect(0,0,128,128);
+  var grd=g.createLinearGradient(0,0,0,256);
+  grd.addColorStop(0,'#06091a');grd.addColorStop(0.5,'#0c1330');grd.addColorStop(1,'#162243');  // deep night, lifts a touch near the horizon
+  g.fillStyle=grd;g.fillRect(0,0,256,256);
+  var aur=g.createLinearGradient(0,150,0,256);aur.addColorStop(0,'rgba(80,210,165,0)');aur.addColorStop(1,'rgba(80,210,165,0.12)'); // faint aurora wash low
+  g.fillStyle=aur;g.fillRect(0,150,256,106);
+  for(var s=0;s<360;s++){var x=Math.random()*256,y=Math.random()*256,r=Math.random()*1.3+0.2,a=Math.random()*0.8+0.2;g.beginPath();g.arc(x,y,r,0,Math.PI*2);g.fillStyle='rgba(255,255,255,'+a+')';g.fill();}
+  for(var b=0;b<16;b++){var bx=Math.random()*256,by=Math.random()*256,bg=g.createRadialGradient(bx,by,0,bx,by,4);bg.addColorStop(0,'rgba(255,255,255,0.95)');bg.addColorStop(1,'rgba(255,255,255,0)');g.fillStyle=bg;g.fillRect(bx-4,by-4,8,8);}
   var skyTex=new THREE.CanvasTexture(cv2);
-  var sky=new THREE.Mesh(new THREE.SphereGeometry(DOME_R+2.5,20,12,0,Math.PI*2,0,DOME_TH+0.25),
+  var sky=new THREE.Mesh(new THREE.SphereGeometry(DOME_R+2.5,48,28,0,Math.PI*2,0,DOME_TH+0.25),
     new THREE.MeshBasicMaterial({map:skyTex,side:THREE.BackSide,fog:false}));
   sky.position.set(0,DOME_CY,-7);scene.add(sky);
 })();
 
 // glass paneled cap — iridescent rainbow vertex colors, additive shimmer
-var domeGeo=new THREE.SphereGeometry(DOME_R,10,5,0,Math.PI*2,0,DOME_TH);
+var domeGeo=new THREE.SphereGeometry(DOME_R,64,32,0,Math.PI*2,0,DOME_TH);  // high-seg = smooth circle, no faceting / angular seam lines
 (function(){
   var p=domeGeo.attributes.position,n=p.count,cols=[],c=new THREE.Color();
   for(var i=0;i<n;i++){
@@ -252,13 +257,36 @@ var domeGeo=new THREE.SphereGeometry(DOME_R,10,5,0,Math.PI*2,0,DOME_TH);
   domeGeo.setAttribute('color',new THREE.Float32BufferAttribute(cols,3));
 })();
 var domeGlass=new THREE.Mesh(domeGeo,new THREE.MeshBasicMaterial({
-  vertexColors:true,transparent:true,opacity:0.22,side:THREE.DoubleSide,
+  vertexColors:true,transparent:true,opacity:0.12,side:THREE.DoubleSide,
   blending:THREE.AdditiveBlending,depthWrite:false,fog:false}));
 domeGlass.position.set(0,DOME_CY,-7);scene.add(domeGlass);
-// bright rim halo around the opening
-var halo=new THREE.Mesh(new THREE.TorusGeometry(12,0.22,8,52),
-  new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:0.5,fog:false}));
+// subtle rim around the opening (dimmed so it's an accent, not a white halo)
+var halo=new THREE.Mesh(new THREE.TorusGeometry(12,0.2,8,64),
+  new THREE.MeshBasicMaterial({color:0xc7d2e8,transparent:true,opacity:0.3,fog:false}));
 halo.rotation.x=Math.PI/2;halo.position.set(0,19,-7);scene.add(halo);
+
+// ── AURORA BOREALIS — additive light curtains drifting around the room, pulsing to the music ──
+var auroras=[];
+(function(){
+  var cv=document.createElement('canvas');cv.width=64;cv.height=128;var g=cv.getContext('2d');
+  var grd=g.createLinearGradient(0,0,0,128);
+  grd.addColorStop(0,'rgba(255,255,255,0)');grd.addColorStop(0.4,'rgba(255,255,255,0.55)');
+  grd.addColorStop(0.72,'rgba(255,255,255,0.9)');grd.addColorStop(1,'rgba(255,255,255,0)');
+  g.fillStyle=grd;g.fillRect(0,0,64,128);
+  g.globalCompositeOperation='destination-out';
+  for(var s=0;s<20;s++){g.globalAlpha=Math.random()*0.6;g.fillRect(Math.random()*64,0,1+Math.random()*2.5,128);}
+  var atex=new THREE.CanvasTexture(cv);
+  var cols=[0x66ffb4,0x4be0d6,0x76ccff,0xb488ff,0xff8ad6,0x8effb0,0x6ad8ff];
+  var n=IS_TOUCH?5:7;
+  for(var i=0;i<n;i++){
+    var ang=i/n*Math.PI*2, rad=11+Math.random()*5, w=8+Math.random()*6, h=11+Math.random()*6;
+    var m=new THREE.Mesh(new THREE.PlaneGeometry(w,h),new THREE.MeshBasicMaterial({map:atex,color:cols[i%cols.length],transparent:true,opacity:0,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide,fog:false}));
+    m.position.set(Math.cos(ang)*rad,7+Math.random()*5,-7+Math.sin(ang)*rad);
+    m.rotation.y=-ang+Math.PI/2;
+    m.userData={ang:ang,rad:rad,baseY:m.position.y,band:2+i*4,ph:i*1.7,baseOp:0.26+Math.random()*0.12,sway:0.6+Math.random()*0.6};
+    auroras.push(m);scene.add(m);
+  }
+})();
 
 // ── dispersed rainbow ambient (no harsh central beam) ──
 // (rainbow point lights are created above as an orbiting ring — see rainbowLights)
@@ -936,6 +964,18 @@ function animate(){
   animate.gp=(animate.gp||0)*0.85+gLvl*0.15;                  // smoothed global level → drives the starlight pulse
   // buoyant groove envelope: gentle lift, slow float-down → makes the bob floaty instead of jittery
   var gvP=animate.groove||0;animate.groove=gvP+(groove-gvP)*(groove>gvP?0.11:0.04);
+  // ── aurora wisps: drift around the room + pulse to the music (each tracks its own band) ──
+  for(var au=0;au<auroras.length;au++){
+    var aw=auroras[au],aud=aw.userData,ae=0;
+    if(haveAudio){for(var ab=aud.band;ab<aud.band+5;ab++)ae+=freqData[ab];ae=Math.min(1,ae/5/255*1.4);}
+    aud.lvl=(aud.lvl||0)*0.85+ae*0.15;
+    aw.material.opacity=aud.baseOp*(haveAudio?(0.45+aud.lvl*1.4+animate.gp*0.7):0.6);
+    var aa=aud.ang+Math.sin(t*0.16*aud.sway+aud.ph)*0.28;
+    aw.position.x=Math.cos(aa)*aud.rad;aw.position.z=-7+Math.sin(aa)*aud.rad;
+    aw.position.y=aud.baseY+Math.sin(t*0.38+aud.ph)*1.3;
+    aw.rotation.y=-aa+Math.PI/2;aw.rotation.z=Math.sin(t*0.28+aud.ph)*0.13;
+    aw.scale.y=1+Math.sin(t*0.5+aud.ph)*0.12+aud.lvl*0.35;
+  }
   for(var i=0;i<slimeList.length;i++){
     var sl=slimeList[i],fo=sl.userData.floatOffset,ud=sl.userData;
     var lo=2+i*4,e=0;                                        // each slime listens to its own frequency band
