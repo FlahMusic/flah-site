@@ -542,15 +542,18 @@ function makeSlime(x,y,z,scale,colIdx,floatOff){
   // rounded slime body (revolved teardrop, welded smooth — no seam)
   var body=new THREE.Mesh(SLIME_GEO,mat(c.body,1,0.34,0.04,c.body,0.07));
   body.scale.set(BS,BS,BS);g.add(body);
-  // ── EYES: round, always OPEN (no closed ^_^ — they should look open-eyed) ──
+  // ── EYES: round open (default) ↔ happy ^_^ arches (activated) ──
+  var roundEyes=[],happyEyes=[];
   [-0.13,0.13].forEach(function(ex){
-    var ew=new THREE.Mesh(SPH,mat(0xffffff,1,0.2,0));ew.scale.set(0.075*BS,0.094*BS,0.05*BS);ew.position.set(ex*BS,0.085*BS,0.5*BS);g.add(ew);
-    var pu=new THREE.Mesh(SPH,mat(c.eye,1,0.8,0));pu.scale.set(0.038*BS,0.045*BS,0.038*BS);pu.position.set(ex*BS,0.08*BS,0.55*BS);g.add(pu);
+    var ew=new THREE.Mesh(SPH,mat(0xffffff,1,0.2,0));ew.scale.set(0.075*BS,0.094*BS,0.05*BS);ew.position.set(ex*BS,0.085*BS,0.5*BS);g.add(ew);roundEyes.push(ew);
+    var pu=new THREE.Mesh(SPH,mat(c.eye,1,0.8,0));pu.scale.set(0.038*BS,0.045*BS,0.038*BS);pu.position.set(ex*BS,0.08*BS,0.55*BS);g.add(pu);roundEyes.push(pu);
+    var he=new THREE.Mesh(new THREE.TorusGeometry(0.058*BS,0.013*BS,6,16,Math.PI),mat(c.eye,1,0.7,0));  // ∩ happy ^_^ eye, hidden until activated
+    he.position.set(ex*BS,0.075*BS,0.545*BS);he.visible=false;g.add(he);happyEyes.push(he);
   });
-  // ── MOUTH: idle ∪ smile (personality varies per slime) ↔ :D OPEN mouth ──
-  var sw=0.82+Math.random()*0.5,sd=0.78+Math.random()*0.6;   // per-slime smile width/curve so they aren't identical
-  var smile=new THREE.Mesh(new THREE.TorusGeometry(0.095*BS,0.018*BS,8,20,Math.PI),mat(0x6a1422,1,0.6,0));
-  smile.rotation.z=Math.PI;smile.scale.set(sw,sd,1);smile.position.set(0,-0.055*BS,0.6*BS);g.add(smile);
+  // ── MOUTH: idle ∪ smile (each slime: different width + slight tilt = personality) ↔ :D OPEN mouth ──
+  var swid=0.072+Math.random()*0.04,stilt=(Math.random()-0.5)*0.2;   // vary WIDTH + a small smirk; tube stays constant so it never pinches/chops
+  var smile=new THREE.Mesh(new THREE.TorusGeometry(swid*BS,0.017*BS,8,24,Math.PI),mat(0x6a1422,1,0.6,0));
+  smile.rotation.z=Math.PI+stilt;smile.position.set(0,-0.05*BS,0.6*BS);g.add(smile);
   // open grin: gentle smile-line top + DEEP rounded bowl bottom = unmistakably an open :D
   var mw=0.145*BS,msh=new THREE.Shape();
   msh.moveTo(-mw,0);msh.quadraticCurveTo(0,0.05*BS,mw,0);          // top edge curves slightly UP (smile line)
@@ -564,7 +567,7 @@ function makeSlime(x,y,z,scale,colIdx,floatOff){
   var tongue=new THREE.Mesh(new THREE.ShapeGeometry(tsh,16),new THREE.MeshStandardMaterial({color:0xe06a80,roughness:0.5,side:THREE.DoubleSide}));
   tongue.position.set(0,0,0.004*BS);grin.add(tongue);
   g.add(grin);
-  g.userData.smile=smile;g.userData.grin=grin;
+  g.userData.roundEyes=roundEyes;g.userData.happyEyes=happyEyes;g.userData.smile=smile;g.userData.grin=grin;
   g.userData.sx=x;g.userData.sz=z;
   var rr=0.55*scale+2.0;g.userData.r2=rr*rr;   // generous so walking up to a slime reliably triggers it
   g.userData.floatOffset=floatOff||0;g.userData.baseY=y;
@@ -936,7 +939,10 @@ function animate(){
     if(dyn>0.06&&rising&&t>(ud._refract||0)){ud._until=t+0.11;ud._refract=t+0.28;}   // brief :D flash + refractory → never pins on
     var near=((camera.position.x-ud.sx)*(camera.position.x-ud.sx)+(camera.position.z-ud.sz)*(camera.position.z-ud.sz))<ud.r2;
     var act=near||(t<(ud._until||0));                        // ACTIVATED = walk up (OVERRIDES music, held) OR a melodic note (brief flash)
-    if(act!==ud._act){ud._act=act;ud.smile.visible=!act;ud.grin.visible=act;}        // eyes stay round/open the whole time; only mouth ∪ ↔ :D
+    if(act!==ud._act){ud._act=act;
+      for(var re=0;re<ud.roundEyes.length;re++)ud.roundEyes[re].visible=!act;       // round open ↔ ^_^
+      for(var hp=0;hp<ud.happyEyes.length;hp++)ud.happyEyes[hp].visible=act;
+      ud.smile.visible=!act;ud.grin.visible=act;}                                    // ∪ ↔ :D
     sl.position.y=ud.baseY+Math.sin(t*1.1+fo)*0.1+(haveAudio?(ud.eS*0.55+animate.gp*0.35):0);  // idle float + beat bounce (music only)
     sl.rotation.y=Math.sin(t*0.5+fo)*0.2;
     sl.scale.setScalar((act?1.07:1)*(1+ud.eS*0.1));
