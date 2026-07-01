@@ -247,7 +247,7 @@ var DOME_CY=11.5, DOME_R=15, DOME_TH=1.05; // cap sits above the opening, apex ~
   // nebula clouds at varying depth/height (colour + parallax)
   [[0x8a4cf0,-7,26,-5,18],[0x2f8fe0,7,34,3,20],[0xe05aa6,-8,42,-3,16],[0x39c8b8,6,46,-7,18],[0x6a86ff,3,30,6,14]].forEach(function(nb){var sp=new THREE.Sprite(new THREE.SpriteMaterial({map:cloudTex,color:nb[0],transparent:true,opacity:0.55,blending:THREE.AdditiveBlending,depthWrite:false,fog:false}));sp.position.set(CX+nb[1],nb[2],CZ+nb[3]);sp.scale.set(nb[4],nb[4],1);scene.add(sp);});
   // distant worlds for scale, way out
-  function world(x,y,z,r,col,glow,ring){var gp=new THREE.Group();gp.position.set(CX+x,y,CZ+z);var b=new THREE.Mesh(new THREE.SphereGeometry(1,20,16),new THREE.MeshStandardMaterial({color:col,roughness:0.9,metalness:0,emissive:col,emissiveIntensity:0.32,fog:false}));b.scale.setScalar(r);gp.add(b);if(ring){var rg=new THREE.Mesh(new THREE.RingGeometry(r*1.4,r*2.2,40),new THREE.MeshBasicMaterial({color:ring,transparent:true,opacity:0.5,side:THREE.DoubleSide,fog:false}));rg.rotation.x=1.18;rg.rotation.y=0.3;gp.add(rg);}var sp=new THREE.Sprite(new THREE.SpriteMaterial({map:cloudTex,color:glow,transparent:true,opacity:0.5,blending:THREE.AdditiveBlending,depthWrite:false,fog:false}));sp.scale.set(r*6,r*6,1);gp.add(sp);scene.add(gp);}
+  function world(x,y,z,r,col,glow,ring){var gp=new THREE.Group();gp.position.set(CX+x,y,CZ+z);var b=new THREE.Mesh(new THREE.SphereGeometry(1,20,16),new THREE.MeshStandardMaterial({color:col,roughness:0.9,metalness:0,emissive:col,emissiveIntensity:0.32,fog:false}));b.scale.setScalar(r);gp.add(b);if(ring){var rg=new THREE.Mesh(new THREE.RingGeometry(r*1.4,r*2.2,40),new THREE.MeshBasicMaterial({color:ring,transparent:true,opacity:0.5,side:THREE.DoubleSide,fog:false}));rg.rotation.x=1.18;rg.rotation.y=0.3;gp.add(rg);}var sp=new THREE.Sprite(new THREE.SpriteMaterial({map:cloudTex,color:glow,transparent:true,opacity:0.28,blending:THREE.AdditiveBlending,depthWrite:false,fog:false}));sp.scale.set(r*2.3,r*2.3,1);gp.add(sp);scene.add(gp);}
   world(-8,30,-4,2.0,0x6a86ff,0x9fb6ff,0xbcd0ff); world(8,42,-6,1.5,0xe0934a,0xffc890,0);
 })();
 
@@ -730,6 +730,34 @@ var planetList=[];
   planet(54,8,-2,2.0,0xcf9a66,0,0,0); planet(64,-1,-16,3.8,0x9a5ee0,0,0xe2c8ff,0xc89aff);
 })();
 
+// ── SPACE WINDOWS: warp fields — particle stars flying toward you through each window (flying-through-space) ──
+var warps=[];
+(function(){
+  var dt=document.createElement('canvas');dt.width=32;dt.height=32;var dx=dt.getContext('2d');
+  var dg=dx.createRadialGradient(16,16,0,16,16,16);dg.addColorStop(0,'rgba(255,255,255,1)');dg.addColorStop(0.4,'rgba(255,255,255,0.5)');dg.addColorStop(1,'rgba(255,255,255,0)');
+  dx.fillStyle=dg;dx.fillRect(0,0,32,32);var dotTex=new THREE.CanvasTexture(dt);
+  var pal=[[1,1,1],[0.72,0.9,1],[1,0.8,0.92],[0.8,1,0.9]];   // soft white / cyan / pink / mint to match the palette
+  function field(o){
+    var N=IS_TOUCH?Math.round(o.n*0.5):o.n, pos=new Float32Array(N*3), col=new Float32Array(N*3), ai=(o.axis==='z')?2:0, pi=(o.axis==='z')?0:2;
+    for(var i=0;i<N;i++){
+      pos[i*3+ai]=o.far+Math.random()*(o.near-o.far);
+      pos[i*3+pi]=o.pc+(Math.random()*2-1)*o.ph;
+      pos[i*3+1]=o.yc+(Math.random()*2-1)*o.yh;
+      var c=pal[(Math.random()*pal.length)|0];col[i*3]=c[0];col[i*3+1]=c[1];col[i*3+2]=c[2];
+    }
+    var g=new THREE.BufferGeometry();
+    g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));
+    g.setAttribute('color',new THREE.Float32BufferAttribute(col,3));
+    var pts=new THREE.Points(g,new THREE.PointsMaterial({map:dotTex,vertexColors:true,size:0.62,sizeAttenuation:true,transparent:true,opacity:0.95,depthWrite:false,blending:THREE.AdditiveBlending,fog:false}));
+    pts.frustumCulled=false;pts.userData={o:o,N:N,ai:ai,pi:pi};warps.push(pts);scene.add(pts);
+  }
+  // each window ≈ 25 wide × 11 tall, centered on the room; particles cruise from the far backdrop toward the cut-out
+  field({axis:'z',dir: 1,far:-78,near:-33,pc:0, ph:11,yc:3.5,yh:5,n:280}); // back  (wall z=-30)
+  field({axis:'z',dir:-1,far: 48,near: 19,pc:0, ph:11,yc:3.5,yh:5,n:280}); // front (wall z=16)
+  field({axis:'x',dir:-1,far: 78,near: 33,pc:-7,ph:11,yc:3.5,yh:5,n:280}); // right (wall x=30)
+  field({axis:'x',dir: 1,far:-78,near:-33,pc:-7,ph:11,yc:3.5,yh:5,n:280}); // left  (wall x=-30)
+})();
+
 // precompute interactable meshes for raycast (once)
 var iaMeshes=[];
 ias.forEach(function(g){g.traverse(function(ch){if(ch.isMesh)iaMeshes.push(ch);});});
@@ -987,6 +1015,22 @@ function animate(){
     auroraMat.uniforms.uTime.value+=adt*aspd;
     auroraMat.uniforms.uIntensity.value=0.9+(haveAudio?animate.gp*0.2:0.0);  // near-constant brightness
     if(auroraMesh)auroraMesh.rotation.y+=adt*0.035;                          // whole veil slowly revolves around you
+  }
+  // ── space-window warp: cruise each star toward the cut-out, recycle it to the far backdrop when it passes ──
+  if(warps.length){
+    var wdt=Math.min(0.05,t-(animate.wpt||t));animate.wpt=t;
+    for(var wi=0;wi<warps.length;wi++){
+      var W=warps[wi],o=W.userData.o,arr=W.geometry.attributes.position.array,WN=W.userData.N,wai=W.userData.ai,wpi=W.userData.pi,step=6.5*wdt*o.dir;
+      for(var wp=0;wp<WN;wp++){
+        var ix=wp*3+wai;arr[ix]+=step;
+        if((o.dir>0&&arr[ix]>o.near)||(o.dir<0&&arr[ix]<o.near)){
+          arr[ix]=o.far;
+          arr[wp*3+wpi]=o.pc+(Math.random()*2-1)*o.ph;
+          arr[wp*3+1]=o.yc+(Math.random()*2-1)*o.yh;
+        }
+      }
+      W.geometry.attributes.position.needsUpdate=true;
+    }
   }
   for(var i=0;i<slimeList.length;i++){
     var sl=slimeList[i],fo=sl.userData.floatOffset,ud=sl.userData;
